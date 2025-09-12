@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streamr 1-to-1 Video (Watch Only)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script src="https://unpkg.com/@streamr/sdk@latest/dist/streamr-sdk.web.js"></script>
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+        }
+        .page { 
+            display: none; 
+        }
+        .active { 
+            display: block; 
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .status-dot {
+            height: 10px; 
+            width: 10px; 
+            border-radius: 50%; 
+            display: inline-block;
+        }
+        .dot-green { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
+        .dot-red { background-color: #f87171; box-shadow: 0 0 5px #f87171; }
+        .dot-yellow { background-color: #facc15; box-shadow: 0 0 5px #facc15; }
+        .dot-yellow-flashing { animation: pulse-yellow 1.5s infinite; }
+
+        @keyframes pulse-yellow {
+            0% { background-color: #facc15; box-shadow: 0 0 5px #facc15; }
+            50% { background-color: #a16207; box-shadow: none; }
+            100% { background-color: #facc15; box-shadow: 0 0 5px #facc15; }
+        }
+
+        /* --- Styles for Sliders --- */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+            width: 100%;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: #3f3f46;
+            height: 0.25rem;
+            border-radius: 0.5rem;
+        }
+        input[type="range"]::-moz-range-track {
+            background: #3f3f46;
+            height: 0.25rem;
+            border-radius: 0.5rem;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -6px;
+            background-color: #a1a1aa;
+            height: 1rem;
+            width: 1rem;
+            border-radius: 9999px;
+            transition: background-color 0.2s;
+        }
+        input[type="range"]::-moz-range-thumb {
+            border: none;
+            border-radius: 9999px;
+            background-color: #a1a1aa;
+            height: 1rem;
+            width: 1rem;
+            transition: background-color 0.2s;
+        }
+        input[type="range"]:hover::-webkit-slider-thumb { background-color: #d4d4d8; }
+        input[type="range"]:hover::-moz-range-thumb { background-color: #d4d4d8; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-zinc-900 text-zinc-300 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-3xl">
+
+        <!-- Main Menu Page -->
+        <div id="menu-page" class="page active">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-5xl font-bold text-white">
+                    Decentralized Stream
+                </h1>
+            </div>
+            
+            <div class="mt-10 bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8">
+                <div class="flex flex-col items-center text-center max-w-xs mx-auto">
+                   <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-zinc-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    <button id="go-watch" class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Watch Stream
+                    </button>
+                </div>
+                <p id="menu-status" class="text-center text-zinc-500 text-sm mt-6">Connecting to the P2P network...</p>
+            </div>
+        </div>
+        
+        <!-- Watch Page -->
+        <div id="watch-page" class="page">
+            <div class="text-center mb-6">
+                 <h1 class="text-3xl font-bold text-white">Watching Stream</h1>
+                 <div id="watch-status" class="mt-1 text-zinc-400 text-sm">...</div>
+            </div>
+            <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
+                <div class="relative group">
+                    <video id="remoteVideo" autoplay playsinline class="w-full h-auto bg-black rounded-md"></video>
+                    <div class="absolute top-2 right-2 bg-zinc-900/50 backdrop-blur-sm rounded-full p-2">
+                        <span id="statusDot" class="status-dot dot-red" title="Disconnected"></span>
+                    </div>
+                    <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                         <button id="fullscreen-btn" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Fullscreen">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m0 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5h-4m0 0v-4m0 4l-5-5" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-end items-center gap-4 px-2">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
+                        </svg>
+                        <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-24">
+                    </div>
+                    <button id="back-to-menu-2" class="p-2 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors" title="Stop and Go Back">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function startApp() {
+        const STREAM_ID = '0xd5a8024414f59cf0c453c35fc3655a31251645f6/app5';
+        const STALE_STREAM_TIMEOUT = 5000;
+
+        // UI Elements
+        const pages = {
+            menu: document.getElementById('menu-page'),
+            watch: document.getElementById('watch-page'),
+        };
+        const goWatchBtn = document.getElementById('go-watch');
+        const backBtn = document.getElementById('back-to-menu-2');
+        
+        const remoteVideo = document.getElementById('remoteVideo');
+        const watchStatus = document.getElementById('watch-status');
+        const statusDot = document.getElementById('statusDot');
+        const menuStatus = document.getElementById('menu-status');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const volumeSlider = document.getElementById('volume-slider');
+
+        // State Variables
+        let streamr;
+        let subscription;
+        let mediaSource;
+        let sourceBuffer;
+        const receivedChunksQueue = [];
+        let isSourceBufferUpdating = false;
+        let isPlayerInitialized = false;
+        let watcherWorker = null;
+        let streamHealthCheckInterval = null;
+        let lastChunkTimestamp = 0;
+        
+        function showPage(pageName) {
+            Object.values(pages).forEach(p => p.classList.remove('active'));
+            pages[pageName].classList.add('active');
+        }
+        
+        async function preConnectStreamr() {
+            if (streamr) return;
+            try {
+                streamr = new window.StreamrClient();
+                await streamr.connect();
+                menuStatus.textContent = "Ready.";
+                goWatchBtn.disabled = false;
+            } catch (error) {
+                console.error('Failed to pre-connect to Streamr:', error);
+                menuStatus.textContent = "Error connecting to the network. Please refresh.";
+            }
+        }
+
+        function setupWatcherWorker() {
+            const workerCode = `
+                self.onmessage = (event) => {
+                    const { chunk } = event.data;
+                    const binary_string = self.atob(chunk);
+                    const len = binary_string.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binary_string.charCodeAt(i);
+                    }
+                    self.postMessage(bytes.buffer, [bytes.buffer]);
+                };
+            `;
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            watcherWorker = new Worker(URL.createObjectURL(blob));
+            watcherWorker.onmessage = (event) => {
+                receivedChunksQueue.push(event.data);
+                processNextChunk();
+            };
+        }
+
+        function resetPlayerState() {
+            console.log("Stream is stale or being reset. Looking for new broadcast...");
+            isPlayerInitialized = false;
+            
+            if (remoteVideo.src) {
+                URL.revokeObjectURL(remoteVideo.src);
+            }
+            setupReceiver();
+
+            sourceBuffer = null;
+            receivedChunksQueue.length = 0;
+            statusDot.className = 'status-dot dot-yellow';
+            statusDot.title = 'Interrupted';
+            watchStatus.textContent = 'Stream interrupted. Looking for a new broadcast...';
+        }
+
+        async function startWatch() {
+            showPage('watch');
+            if (!streamr) {
+                watchStatus.textContent = 'Connecting to Streamr...';
+                await preConnectStreamr();
+                 if (!streamr) {
+                     watchStatus.textContent = 'Failed to connect to Streamr.';
+                     return;
+                }
+            }
+            
+            setupReceiver();
+            setupWatcherWorker();
+            watchStatus.textContent = `Looking for a broadcast...`;
+
+            if (streamHealthCheckInterval) clearInterval(streamHealthCheckInterval);
+            streamHealthCheckInterval = setInterval(() => {
+                if (isPlayerInitialized && (Date.now() - lastChunkTimestamp > STALE_STREAM_TIMEOUT)) {
+                    resetPlayerState();
+                }
+            }, 2000);
+
+            try {
+                subscription = await streamr.subscribe({ id: STREAM_ID }, (message) => {
+                    lastChunkTimestamp = Date.now();
+                    if (!isPlayerInitialized) {
+                        if (message.type === 'init' && message.chunk) {
+                            isPlayerInitialized = true;
+                            watcherWorker.postMessage({ chunk: message.chunk });
+                        }
+                        return;
+                    }
+                    if (message.type === 'media' && message.chunk) {
+                        watcherWorker.postMessage({ chunk: message.chunk });
+                    }
+                });
+            } catch (error) {
+                console.error('Subscription failed:', error);
+                watchStatus.textContent = 'Error subscribing to stream.';
+            }
+        }
+
+        function setupReceiver() {
+            mediaSource = new MediaSource();
+            remoteVideo.src = URL.createObjectURL(mediaSource);
+            remoteVideo.addEventListener('playing', () => {
+                watchStatus.textContent = 'Receiving stream...';
+                statusDot.className = 'status-dot dot-green';
+            });
+            remoteVideo.addEventListener('waiting', () => {
+                watchStatus.textContent = 'Buffering...';
+                statusDot.className = 'status-dot dot-yellow-flashing';
+            });
+            mediaSource.addEventListener('sourceopen', () => console.log('MediaSource open.'));
+        }
+        
+        function processNextChunk() {
+            if (!mediaSource || mediaSource.readyState !== 'open' || isSourceBufferUpdating || receivedChunksQueue.length === 0) {
+                return;
+            }
+
+            if (!sourceBuffer) {
+                 try {
+                    const mimeType = 'video/webm; codecs=vp8,opus';
+                    sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+                    sourceBuffer.addEventListener('updateend', () => {
+                        isSourceBufferUpdating = false;
+                        if (remoteVideo.paused) {
+                            remoteVideo.play().catch(e => console.warn("Autoplay prevented", e.message));
+                        }
+                        processNextChunk();
+                    });
+                    statusDot.className = 'status-dot dot-yellow';
+                    watchStatus.textContent = 'Initializing player...';
+                 } catch (e) {
+                    console.error('Error creating SourceBuffer:', e);
+                    watchStatus.textContent = 'Video player error.';
+                    return;
+                 }
+            }
+
+            if (sourceBuffer && !sourceBuffer.updating) {
+                isSourceBufferUpdating = true;
+                try {
+                    sourceBuffer.appendBuffer(receivedChunksQueue.shift());
+                } catch (e) {
+                    console.error("Error appending buffer:", e);
+                    isSourceBufferUpdating = false;
+                }
+            }
+        }
+        
+        async function goBackToMenu() {
+            if (streamHealthCheckInterval) clearInterval(streamHealthCheckInterval);
+            if (subscription) await subscription.unsubscribe();
+            if (watcherWorker) watcherWorker.terminate();
+            
+            if (mediaSource && mediaSource.readyState === 'open') {
+                 try {
+                    if (sourceBuffer && sourceBuffer.updating) sourceBuffer.abort();
+                    mediaSource.endOfStream();
+                } catch (e) { console.warn("Error closing MediaSource:", e.message); }
+            }
+            remoteVideo.src = '';
+            
+            // Reset state variables
+            subscription = null; mediaSource = null;
+            sourceBuffer = null; isSourceBufferUpdating = false; isPlayerInitialized = false;
+            watcherWorker = null;
+            streamHealthCheckInterval = null; lastChunkTimestamp = 0;
+            receivedChunksQueue.length = 0;
+            statusDot.className = 'status-dot dot-red';
+            showPage('menu');
+        }
+
+        // --- Event Listeners ---
+        goWatchBtn.onclick = startWatch;
+        backBtn.onclick = goBackToMenu;
+
+        fullscreenBtn.onclick = () => {
+            if (remoteVideo.requestFullscreen) {
+                remoteVideo.requestFullscreen();
+            } else if (remoteVideo.webkitRequestFullscreen) { /* Safari */
+                remoteVideo.webkitRequestFullscreen();
+            } else if (remoteVideo.msRequestFullscreen) { /* IE11 */
+                remoteVideo.msRequestFullscreen();
+            }
+        };
+        
+        volumeSlider.oninput = (e) => {
+            remoteVideo.volume = e.target.value / 100;
+        };
+
+        preConnectStreamr();
+    }
+    
+    function checkStreamrLibrary() {
+        if (window.StreamrClient && window.ethers) {
+            console.log("Streamr SDK and Ethers.js loaded.");
+            startApp();
+        } else {
+            console.log("Waiting for Streamr SDK and Ethers.js... Retrying in 100ms.");
+            setTimeout(checkStreamrLibrary, 100);
+        }
+    }
+
+    window.onload = checkStreamrLibrary;
+    </script>
+</body>
+</html>
+

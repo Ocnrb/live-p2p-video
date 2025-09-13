@@ -296,7 +296,7 @@
                 streamr = new window.StreamrClient();
                 await streamr.connect();
                 menuStatus.textContent = "Ready. Choose an option.";
-                goSettingsBtn.disabled = false;
+                // goSettingsBtn.disabled = false; // Botão de transmissão desativado conforme solicitado
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to pre-connect to Streamr:', error);
@@ -647,3 +647,4 @@
     </script>
 </body>
 </html>
+

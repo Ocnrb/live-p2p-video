@@ -82,45 +82,6 @@
         }
         input[type="range"]:hover::-webkit-slider-thumb { background-color: #d4d4d8; }
         input[type="range"]:hover::-moz-range-thumb { background-color: #d4d4d8; }
-
-        .log-modal {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90%;
-            max-width: 600px;
-            max-height: 80vh;
-            background-color: #1a1a1a;
-            border: 1px solid #3f3f46;
-            border-radius: 12px;
-            z-index: 100;
-            overflow: hidden;
-            flex-direction: column;
-        }
-        .log-modal-content {
-            padding: 24px;
-            overflow-y: auto;
-            flex-grow: 1;
-        }
-        .log-modal-header {
-            padding: 16px 24px;
-            border-bottom: 1px solid #3f3f46;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .log-line {
-            font-family: monospace;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            margin-bottom: 4px;
-        }
-        .log-line.info { color: #818cf8; }
-        .log-line.success { color: #4ade80; }
-        .log-line.error { color: #f87171; }
-        .log-line.warning { color: #facc15; }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -256,20 +217,11 @@
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
                         </svg>
                     </button>
-                    <button id="show-logs-btn" class="bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">Show Logs</button>
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- Log Modal -->
-    <div id="log-modal" class="log-modal">
-        <div class="log-modal-header">
-            <h3 class="text-white font-bold text-lg">Player Logs</h3>
-            <button id="close-logs-btn" class="text-zinc-400 hover:text-white transition-colors">&times;</button>
-        </div>
-        <div class="log-modal-content" id="log-content"></div>
-    </div>
+
     <script>
     function startApp() {
         const STREAM_ID = '0xd5a8024414f59cf0c453c35fc3655a31251645f6/app5';
@@ -310,10 +262,6 @@
         const latencySlider = document.getElementById('latency-slider');
         const latencyValue = document.getElementById('latency-value');
         const volumeSlider = document.getElementById('volume-slider');
-        const showLogsBtn = document.getElementById('show-logs-btn');
-        const closeLogsBtn = document.getElementById('close-logs-btn');
-        const logModal = document.getElementById('log-modal');
-        const logContent = document.getElementById('log-content');
 
         // State Variables
         let streamr;
@@ -326,12 +274,11 @@
         let isSourceBufferUpdating = false;
         let isPlayerInitialized = false;
         let metaPublishInterval = null;
+        let watcherWorker = null;
+        let broadcasterWorker = null;
         let streamHealthCheckInterval = null;
         let lastChunkTimestamp = 0;
         
-        // This variable will hold the 'init' chunk for re-publishing
-        let initChunk = null;
-
         const resolutionMap = {
             '1': { width: 320, height: 240, label: '320x240' },
             '2': { width: 640, height: 480, label: '640x480' },
@@ -342,31 +289,18 @@
             Object.values(pages).forEach(p => p.classList.remove('active'));
             pages[pageName].classList.add('active');
         }
-
-        function logMessage(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const logLine = document.createElement('div');
-            logLine.textContent = `[${timestamp}] ${message}`;
-            logLine.className = `log-line ${type}`;
-            logContent.appendChild(logLine);
-            logContent.scrollTop = logContent.scrollHeight;
-            console.log(`[${timestamp}] ${message}`);
-        }
         
         async function preConnectStreamr() {
             if (streamr) return;
             try {
-                logMessage("Connecting to Streamr network...");
                 streamr = new window.StreamrClient();
                 await streamr.connect();
                 menuStatus.textContent = "Ready. Choose an option.";
-                // goSettingsBtn.disabled = false; // Botão de transmissão desativado conforme solicitado
+                goSettingsBtn.disabled = false;
                 goWatchBtn.disabled = false;
-                logMessage("Connected to Streamr network.", "success");
             } catch (error) {
                 console.error('Failed to pre-connect to Streamr:', error);
                 menuStatus.textContent = "Error connecting to the network. Please refresh.";
-                logMessage(`Failed to connect to Streamr: ${error.message}`, "error");
             }
         }
 
@@ -394,18 +328,48 @@
                 });
             } catch (err) {
                 console.error("Error populating devices:", err);
-                // Use a modal instead of alert
-                const modal = document.createElement('div');
-                modal.className = "fixed inset-0 bg-zinc-900/50 backdrop-blur-sm flex items-center justify-center";
-                modal.innerHTML = `
-                    <div class="bg-zinc-800 p-6 rounded-lg text-center">
-                        <p class="text-white text-lg">Could not access media devices. Please check your browser's permissions.</p>
-                        <button onclick="this.parentNode.parentNode.remove()" class="mt-4 bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-2 px-4 rounded-lg">OK</button>
-                    </div>
-                `;
-                document.body.appendChild(modal);
+                alert("Could not access media devices. Please check your browser permissions.");
                 showPage('menu');
             }
+        }
+
+        function setupBroadcasterWorker() {
+            const workerCode = `
+                function arrayBufferToBase64(buffer) {
+                    let binary = '';
+                    const bytes = new Uint8Array(buffer);
+                    for (let i = 0; i < bytes.byteLength; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    return self.btoa(binary);
+                }
+
+                self.onmessage = (event) => {
+                    const { type, chunk } = event.data;
+                    chunk.arrayBuffer().then(buffer => {
+                        const base64Chunk = arrayBufferToBase64(buffer);
+                        self.postMessage({ type, chunk: base64Chunk });
+                    });
+                };
+            `;
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            broadcasterWorker = new Worker(URL.createObjectURL(blob));
+
+            broadcasterWorker.onmessage = async (event) => {
+                const { type, chunk } = event.data;
+                if (!streamr) return;
+                try {
+                    await streamr.publish(STREAM_ID, { type, chunk });
+                    if (type === 'init') {
+                        if (metaPublishInterval) clearInterval(metaPublishInterval);
+                        metaPublishInterval = setInterval(async () => {
+                            if (streamr && chunk) {
+                                await streamr.publish(STREAM_ID, { type: 'init', chunk });
+                            }
+                        }, 10000);
+                    }
+                } catch (e) { console.error("Failed to publish chunk from worker:", e); }
+            };
         }
 
         async function startBroadcast(settings) {
@@ -434,44 +398,53 @@
                 localStream = await navigator.mediaDevices.getUserMedia(constraints);
                 localVideo.srcObject = localStream;
                 broadcastStatus.textContent = `Broadcasting (~${settings.bitrate / 1000}kbps)...`;
-                logMessage("Starting broadcast...");
 
+                setupBroadcasterWorker();
+                
                 const mediaRecorderOptions = { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: settings.bitrate };
                 mediaRecorder = new MediaRecorder(localStream, mediaRecorderOptions);
                 
-                mediaRecorder.ondataavailable = async (event) => {
-                    if (event.data.size > 0) {
-                        const type = initChunk ? 'media' : 'init';
-                        const binary_string = btoa(String.fromCharCode.apply(null, new Uint8Array(await event.data.arrayBuffer())));
-                        
-                        if (!initChunk) {
-                            initChunk = binary_string;
-                            logMessage("Generated initial video chunk. Will re-publish every 3 seconds.", "success");
-                            if (metaPublishInterval) clearInterval(metaPublishInterval);
-                            metaPublishInterval = setInterval(async () => {
-                                if (streamr && initChunk) {
-                                    logMessage("Re-publishing 'init' chunk for new viewers.", "info");
-                                    await streamr.publish(STREAM_ID, { type: 'init', chunk: initChunk });
-                                }
-                            }, 3000);
-                        }
-                        
-                        await streamr.publish(STREAM_ID, { type, chunk: binary_string });
+                let isFirstChunk = true;
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0 && broadcasterWorker) {
+                        const type = isFirstChunk ? 'init' : 'media';
+                        if (isFirstChunk) isFirstChunk = false;
+                        broadcasterWorker.postMessage({ type, chunk: event.data });
                     }
                 };
                 
                 mediaRecorder.start(settings.timeslice);
-                logMessage(`MediaRecorder started with timeslice: ${settings.timeslice}ms`, "info");
 
             } catch (error) {
                 console.error('Error starting broadcast:', error);
                 broadcastStatus.textContent = `Error: ${error.message}`;
-                logMessage(`Error starting broadcast: ${error.message}`, "error");
             }
         }
         
+        function setupWatcherWorker() {
+            const workerCode = `
+                self.onmessage = (event) => {
+                    const { chunk } = event.data;
+                    const binary_string = self.atob(chunk);
+                    const len = binary_string.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binary_string.charCodeAt(i);
+                    }
+                    self.postMessage(bytes.buffer, [bytes.buffer]);
+                };
+            `;
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            watcherWorker = new Worker(URL.createObjectURL(blob));
+            watcherWorker.onmessage = (event) => {
+                receivedChunksQueue.push(event.data);
+                processNextChunk();
+            };
+        }
+
         function resetPlayerState() {
-            logMessage("Stream is stale or being reset. Looking for new broadcast...", "warning");
+            console.log("Stream is stale or being reset. Looking for new broadcast...");
             isPlayerInitialized = false;
             
             if (remoteVideo.src) {
@@ -488,21 +461,17 @@
 
         async function startWatch() {
             showPage('watch');
-            logContent.innerHTML = ''; // Clear logs for new session
-            logMessage("Starting 'Watch' session.", "info");
-
             if (!streamr) {
                 watchStatus.textContent = 'Connecting to Streamr...';
                 await preConnectStreamr();
                  if (!streamr) {
                      watchStatus.textContent = 'Failed to connect to Streamr.';
-                     logMessage("Failed to connect to Streamr for watching.", "error");
                      return;
                 }
             }
             
             setupReceiver();
-            
+            setupWatcherWorker();
             watchStatus.textContent = `Looking for a broadcast...`;
 
             if (streamHealthCheckInterval) clearInterval(streamHealthCheckInterval);
@@ -511,88 +480,74 @@
                     resetPlayerState();
                 }
             }, 2000);
-            
-            logMessage("Waiting for 'init' chunk before starting chunk processing loop.", "info");
 
             try {
                 subscription = await streamr.subscribe({ id: STREAM_ID }, (message) => {
                     lastChunkTimestamp = Date.now();
-                    const binary_string = atob(message.chunk);
-                    const len = binary_string.length;
-                    const bytes = new Uint8Array(len);
-                    for (let i = 0; i < len; i++) {
-                        bytes[i] = binary_string.charCodeAt(i);
-                    }
-                    const dataBuffer = bytes.buffer;
-                    
-                    if (message.type === 'init') {
-                        logMessage("Received 'init' chunk.");
-                        if (!isPlayerInitialized) {
+                    if (!isPlayerInitialized) {
+                        if (message.type === 'init' && message.chunk) {
                             isPlayerInitialized = true;
-                            logMessage("Player initialized.", "success");
-                            receivedChunksQueue.push(dataBuffer);
-                            processNextChunk();
+                            watcherWorker.postMessage({ chunk: message.chunk });
                         }
-                    } else if (message.type === 'media') {
-                        logMessage("Received 'media' chunk.");
-                        if (isPlayerInitialized) {
-                            receivedChunksQueue.push(dataBuffer);
-                            processNextChunk();
-                        }
+                        return;
+                    }
+                    if (message.type === 'media' && message.chunk) {
+                        watcherWorker.postMessage({ chunk: message.chunk });
                     }
                 });
             } catch (error) {
                 console.error('Subscription failed:', error);
                 watchStatus.textContent = 'Error subscribing to stream.';
-                logMessage(`Subscription failed: ${error.message}`, "error");
             }
         }
 
         function setupReceiver() {
             mediaSource = new MediaSource();
             remoteVideo.src = URL.createObjectURL(mediaSource);
-            mediaSource.addEventListener('sourceopen', () => {
-                logMessage("MediaSource 'sourceopen' event fired.");
-                try {
+            remoteVideo.addEventListener('playing', () => {
+                watchStatus.textContent = 'Receiving stream...';
+                statusDot.className = 'status-dot dot-green';
+            });
+            remoteVideo.addEventListener('waiting', () => {
+                watchStatus.textContent = 'Buffering...';
+                statusDot.className = 'status-dot dot-yellow-flashing';
+            });
+            mediaSource.addEventListener('sourceopen', () => console.log('MediaSource open.'));
+        }
+        
+        function processNextChunk() {
+            if (!mediaSource || mediaSource.readyState !== 'open' || isSourceBufferUpdating || receivedChunksQueue.length === 0) {
+                return;
+            }
+
+            if (!sourceBuffer) {
+                 try {
                     const mimeType = 'video/webm; codecs=vp8,opus';
-                    if (!MediaSource.isTypeSupported(mimeType)) {
-                        logMessage(`MIME type not supported: ${mimeType}`, "error");
-                        watchStatus.textContent = 'Browser does not support this video format.';
-                        return;
-                    }
                     sourceBuffer = mediaSource.addSourceBuffer(mimeType);
                     sourceBuffer.addEventListener('updateend', () => {
                         isSourceBufferUpdating = false;
                         if (remoteVideo.paused) {
                             remoteVideo.play().catch(e => console.warn("Autoplay prevented", e.message));
                         }
-                        processNextChunk(); // Process next chunk in queue after a successful append
+                        processNextChunk();
                     });
-                    logMessage("SourceBuffer created successfully.", "success");
                     statusDot.className = 'status-dot dot-yellow';
                     watchStatus.textContent = 'Initializing player...';
-                } catch (e) {
+                 } catch (e) {
                     console.error('Error creating SourceBuffer:', e);
-                    logMessage(`Error creating SourceBuffer: ${e.message}`, "error");
                     watchStatus.textContent = 'Video player error.';
-                }
-            });
-        }
-        
-        function processNextChunk() {
-            if (!mediaSource || mediaSource.readyState !== 'open' || !sourceBuffer || isSourceBufferUpdating || receivedChunksQueue.length === 0) {
-                return;
+                    return;
+                 }
             }
 
-            isSourceBufferUpdating = true;
-            try {
-                const chunk = receivedChunksQueue.shift();
-                sourceBuffer.appendBuffer(chunk);
-                logMessage(`Appended chunk to buffer. Chunks left: ${receivedChunksQueue.length}`, "info");
-            } catch (e) {
-                console.error("Error appending buffer:", e);
-                logMessage(`Error appending chunk: ${e.message}`, "error");
-                isSourceBufferUpdating = false;
+            if (sourceBuffer && !sourceBuffer.updating) {
+                isSourceBufferUpdating = true;
+                try {
+                    sourceBuffer.appendBuffer(receivedChunksQueue.shift());
+                } catch (e) {
+                    console.error("Error appending buffer:", e);
+                    isSourceBufferUpdating = false;
+                }
             }
         }
         
@@ -600,9 +555,11 @@
             if (metaPublishInterval) clearInterval(metaPublishInterval);
             if (streamHealthCheckInterval) clearInterval(streamHealthCheckInterval);
             
+            if (broadcasterWorker) broadcasterWorker.terminate();
             if (localStream) localStream.getTracks().forEach(track => track.stop());
 
             if (subscription) await subscription.unsubscribe();
+            if (watcherWorker) watcherWorker.terminate();
             
             if (mediaSource && mediaSource.readyState === 'open') {
                  try {
@@ -617,8 +574,10 @@
             // Reset state variables
             localStream = null; subscription = null; mediaSource = null;
             sourceBuffer = null; isSourceBufferUpdating = false; isPlayerInitialized = false;
-            metaPublishInterval = null; streamHealthCheckInterval = null; lastChunkTimestamp = 0;
+            metaPublishInterval = null; watcherWorker = null; broadcasterWorker = null;
+            streamHealthCheckInterval = null; lastChunkTimestamp = 0;
             receivedChunksQueue.length = 0;
+            statusDot.className = 'status-dot dot-red';
             showPage('menu');
         }
 
@@ -670,14 +629,7 @@
             remoteVideo.volume = e.target.value / 100;
         };
         backBtns.forEach(btn => btn.onclick = goBackToMenu);
-        
-        showLogsBtn.onclick = () => {
-            logModal.style.display = 'flex';
-        };
-        closeLogsBtn.onclick = () => {
-            logModal.style.display = 'none';
-        };
-        
+
         preConnectStreamr();
     }
     

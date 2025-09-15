@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Streamr 1-to-1 Video</title>
+    <title>P2P Video Streaming with Streamr & WebCodecs</title>
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <!-- Streamr Client SDK (Latest Version) -->
     <script src="https://unpkg.com/@streamr/sdk@latest/dist/streamr-sdk.web.js"></script>
     <style>
+        /* UI styles from the provided file */
         body { 
             font-family: 'Inter', sans-serif; 
         }
-        video#localVideo { 
+        #localVideo { 
             transform: scaleX(-1); 
             -webkit-transform: scaleX(-1); 
         }
@@ -44,7 +46,6 @@
             100% { background-color: #facc15; box-shadow: 0 0 5px #facc15; }
         }
 
-        /* --- Styles for Sliders --- */
         input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
@@ -94,12 +95,8 @@
         <!-- Main Menu Page -->
         <div id="menu-page" class="page active">
             <div class="text-center">
-                <h1 class="text-4xl md:text-5xl font-bold text-white">
-                    Decentralized Stream
-                </h1>
-                 <h2 class="text-4xl md:text-5xl font-bold text-zinc-400 mb-4">
-                    Powered by Streamr
-                </h2>
+                <h1 class="text-4xl md:text-5xl font-bold text-white">Decentralized Stream</h1>
+                <h2 class="text-4xl md:text-5xl font-bold text-zinc-400 mb-4">Powered by Streamr</h2>
             </div>
             
             <div class="mt-10 bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8">
@@ -107,14 +104,14 @@
                     <div class="flex flex-col items-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-zinc-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                         <h3 class="text-xl font-bold text-white mb-4">Broadcast</h3>
-                        <button id="go-settings" class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <button id="go-settings-btn" class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                             Start Broadcasting
                         </button>
                     </div>
                     <div class="flex flex-col items-center">
                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-zinc-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                         <h3 class="text-xl font-bold text-white mb-4">Watch</h3>
-                        <button id="go-watch" class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <button id="go-watch-btn" class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                             Watch Stream
                         </button>
                     </div>
@@ -131,44 +128,37 @@
             </div>
             <div class="bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8 space-y-6 text-left max-w-md mx-auto">
                 <div>
-                    <label for="camera-select" class="block mb-2 text-sm font-medium text-zinc-300">Camera</label>
-                    <select id="camera-select" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5"></select>
+                    <label for="videoSourceSelect" class="block mb-2 text-sm font-medium text-zinc-300">Camera</label>
+                    <select id="videoSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5"></select>
                 </div>
                 <div>
-                    <label for="mic-select" class="block mb-2 text-sm font-medium text-zinc-300">Microphone</label>
-                    <select id="mic-select" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5"></select>
-                </div>
-                <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <label for="resolution-slider" class="text-sm font-medium text-zinc-300">Resolution</label>
-                        <span id="resolution-value" class="text-sm font-mono text-zinc-400">640x480</span>
-                    </div>
-                    <input id="resolution-slider" type="range" min="1" max="3" value="2" step="1">
+                    <label for="audioSourceSelect" class="block mb-2 text-sm font-medium text-zinc-300">Microphone</label>
+                    <select id="audioSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5"></select>
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
-                        <label for="bitrate-slider" class="text-sm font-medium text-zinc-300">Bitrate</label>
-                        <span id="bitrate-value" class="text-sm font-mono text-zinc-400">500 kbps</span>
+                        <label for="resolutionSlider" class="text-sm font-medium text-zinc-300">Resolution</label>
+                        <span id="resolutionValue" class="text-sm font-mono text-zinc-400">720p</span>
                     </div>
-                    <input id="bitrate-slider" type="range" min="100" max="2000" value="500" step="50">
+                    <input id="resolutionSlider" type="range" min="0" max="2" value="1" step="1">
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
-                        <label for="fps-slider" class="text-sm font-medium text-zinc-300">Frame Rate</label>
-                        <span id="fps-value" class="text-sm font-mono text-zinc-400">24 FPS</span>
+                        <label for="bitrateSlider" class="text-sm font-medium text-zinc-300">Bitrate</label>
+                        <span id="bitrateValue" class="text-sm font-mono text-zinc-400">2.0 Mbps</span>
                     </div>
-                    <input id="fps-slider" type="range" min="10" max="30" value="24" step="1">
+                    <input id="bitrateSlider" type="range" min="500000" max="5000000" value="2000000" step="100000">
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
-                        <label for="latency-slider" class="text-sm font-medium text-zinc-300">Latency vs. Stability</label>
-                        <span id="latency-value" class="text-sm font-mono text-zinc-400">250 ms</span>
+                        <label for="framerateSlider" class="text-sm font-medium text-zinc-300">Frame Rate</label>
+                        <span id="framerateValue" class="text-sm font-mono text-zinc-400">30 fps</span>
                     </div>
-                    <input id="latency-slider" type="range" min="100" max="1000" value="250" step="50">
+                    <input id="framerateSlider" type="range" min="15" max="60" value="30" step="1">
                 </div>
             </div>
             <div class="mt-8 flex justify-center gap-4">
-                <button id="back-to-menu-3" class="bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Back</button>
+                <button id="back-to-menu-settings" class="bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Back</button>
                 <button id="start-broadcast-btn" class="bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-2 px-5 rounded-lg transition-colors">Start Broadcasting</button>
             </div>
         </div>
@@ -182,7 +172,7 @@
             <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
                 <video id="localVideo" autoplay playsinline muted class="w-full h-auto bg-black rounded-md"></video>
             </div>
-            <button id="back-to-menu-1" class="mt-8 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Stop and Go Back</button>
+            <button id="back-to-menu-broadcast" class="mt-8 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Stop and Go Back</button>
         </div>
 
         <!-- Watch Page -->
@@ -193,7 +183,7 @@
             </div>
             <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
                 <div class="relative group">
-                    <video id="remoteVideo" autoplay playsinline class="w-full h-auto bg-black rounded-md"></video>
+                    <canvas id="remoteCanvas" class="w-full h-auto bg-black rounded-md"></canvas>
                     <div class="absolute top-2 right-2 bg-zinc-900/50 backdrop-blur-sm rounded-full p-2">
                         <span id="statusDot" class="status-dot dot-red" title="Disconnected"></span>
                     </div>
@@ -205,445 +195,408 @@
                         </button>
                     </div>
                 </div>
-                <div class="mt-4 flex justify-end items-center gap-4 px-2">
-                    <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
-                        </svg>
-                        <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-24">
-                    </div>
-                    <button id="back-to-menu-2" class="p-2 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors" title="Stop and Go Back">
+                <div class="mt-4 flex justify-between items-center gap-4 px-2">
+                    <button id="back-to-menu-watch" class="p-2 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors" title="Stop and Go Back">
                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
                         </svg>
                     </button>
+                    <div class="flex items-center gap-2 flex-grow">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
+                        </svg>
+                        <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-full">
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-    function startApp() {
-        const STREAM_ID = '0xd5a8024414f59cf0c453c35fc3655a31251645f6/app5';
-        const STALE_STREAM_TIMEOUT = 5000;
-
-        // UI Elements
+        const STREAM_BASE = '0xd5a8024414f59cf0c453c35fc3655a31251645f6';
+        const VIDEO_STREAM_ID = `${STREAM_BASE}/app5`;
+        const AUDIO_STREAM_ID = `${STREAM_BASE}/app6`;
+        
+        // --- UI Elements ---
         const pages = {
             menu: document.getElementById('menu-page'),
             settings: document.getElementById('settings-page'),
             broadcast: document.getElementById('broadcast-page'),
             watch: document.getElementById('watch-page'),
         };
-        const goSettingsBtn = document.getElementById('go-settings');
-        const goWatchBtn = document.getElementById('go-watch');
+        const goSettingsBtn = document.getElementById('go-settings-btn');
+        const goWatchBtn = document.getElementById('go-watch-btn');
         const startBroadcastBtn = document.getElementById('start-broadcast-btn');
         const backBtns = [
-            document.getElementById('back-to-menu-1'), 
-            document.getElementById('back-to-menu-2'),
-            document.getElementById('back-to-menu-3'),
+            document.getElementById('back-to-menu-broadcast'),
+            document.getElementById('back-to-menu-watch'),
+            document.getElementById('back-to-menu-settings'),
         ];
         
         const localVideo = document.getElementById('localVideo');
-        const remoteVideo = document.getElementById('remoteVideo');
+        const remoteCanvas = document.getElementById('remoteCanvas');
         const broadcastStatus = document.getElementById('broadcast-status');
         const watchStatus = document.getElementById('watch-status');
         const statusDot = document.getElementById('statusDot');
         const menuStatus = document.getElementById('menu-status');
         const fullscreenBtn = document.getElementById('fullscreen-btn');
         
-        const cameraSelect = document.getElementById('camera-select');
-        const micSelect = document.getElementById('mic-select');
-        const resolutionSlider = document.getElementById('resolution-slider');
-        const resolutionValue = document.getElementById('resolution-value');
-        const bitrateSlider = document.getElementById('bitrate-slider');
-        const bitrateValue = document.getElementById('bitrate-value');
-        const fpsSlider = document.getElementById('fps-slider');
-        const fpsValue = document.getElementById('fps-value');
-        const latencySlider = document.getElementById('latency-slider');
-        const latencyValue = document.getElementById('latency-value');
+        const videoSourceSelect = document.getElementById('videoSourceSelect');
+        const audioSourceSelect = document.getElementById('audioSourceSelect');
+        const resolutionSlider = document.getElementById('resolutionSlider');
+        const resolutionValue = document.getElementById('resolutionValue');
+        const bitrateSlider = document.getElementById('bitrateSlider');
+        const bitrateValue = document.getElementById('bitrateValue');
+        const framerateSlider = document.getElementById('framerateSlider');
+        const framerateValue = document.getElementById('framerateValue');
         const volumeSlider = document.getElementById('volume-slider');
+        
+        const canvasContext = remoteCanvas.getContext('2d');
 
-        // State Variables
-        let streamr;
+        // --- Constants and Mappings ---
+        const resolutions = [
+            { text: '480p', value: '640x480' },
+            { text: '720p', value: '1280x720' },
+            { text: '1080p', value: '1920x1080' }
+        ];
+
+        // --- State Variables ---
+        let streamrClient;
+        let videoEncoder, audioEncoder;
+        let videoDecoder, audioDecoder;
         let localStream;
-        let mediaRecorder;
-        let subscription;
-        let mediaSource;
-        let sourceBuffer;
-        const receivedChunksQueue = [];
-        let isSourceBufferUpdating = false;
-        let isPlayerInitialized = false;
-        let metaPublishInterval = null;
-        let watcherWorker = null;
-        let broadcasterWorker = null;
-        let streamHealthCheckInterval = null;
-        let lastChunkTimestamp = 0;
-        
-        const resolutionMap = {
-            '1': { width: 320, height: 240, label: '320x240' },
-            '2': { width: 640, height: 480, label: '640x480' },
-            '3': { width: 1280, height: 720, label: '1280x720' }
-        };
-        
+        let audioContext, gainNode;
+        let videoSubscription, audioSubscription;
+        let isBroadcasting = false;
+        let isViewing = false;
+        let lastKeyFrameTimestamp = 0;
+        const KEY_FRAME_INTERVAL_MS = 2000;
+        let lastChunkReceivedTimestamp = 0;
+        let streamHealthInterval = null;
+        const STALE_STREAM_TIMEOUT_MS = 3000;
+
+
+        // --- Helper Functions ---
         function showPage(pageName) {
             Object.values(pages).forEach(p => p.classList.remove('active'));
-            pages[pageName].classList.add('active');
-        }
-        
-        async function preConnectStreamr() {
-            if (streamr) return;
-            try {
-                streamr = new window.StreamrClient();
-                await streamr.connect();
-                menuStatus.textContent = "Ready. Choose an option.";
-                // goSettingsBtn.disabled = false; // Botão de transmissão desativado conforme solicitado
-                goWatchBtn.disabled = false;
-            } catch (error) {
-                console.error('Failed to pre-connect to Streamr:', error);
-                menuStatus.textContent = "Error connecting to the network. Please refresh.";
-            }
+            if(pages[pageName]) pages[pageName].classList.add('active');
         }
 
-        async function populateDeviceSelectors() {
+        async function populateDeviceLists() {
             try {
+                await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                videoSourceSelect.innerHTML = '';
+                audioSourceSelect.innerHTML = '';
+                devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    if (device.kind === 'videoinput') {
+                        option.text = device.label || `Camera ${videoSourceSelect.length + 1}`;
+                        videoSourceSelect.appendChild(option);
+                    } else if (device.kind === 'audioinput') {
+                        option.text = device.label || `Microphone ${audioSourceSelect.length + 1}`;
+                        audioSourceSelect.appendChild(option);
+                    }
+                });
                 const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
                 tempStream.getTracks().forEach(track => track.stop());
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                
-                cameraSelect.innerHTML = '';
-                micSelect.innerHTML = '';
-
-                devices.filter(d => d.kind === 'videoinput').forEach(d => {
-                    const opt = document.createElement('option');
-                    opt.value = d.deviceId;
-                    opt.textContent = d.label || `Camera ${cameraSelect.options.length + 1}`;
-                    cameraSelect.appendChild(opt);
-                });
-
-                devices.filter(d => d.kind === 'audioinput').forEach(d => {
-                    const opt = document.createElement('option');
-                    opt.value = d.deviceId;
-                    opt.textContent = d.label || `Microphone ${micSelect.options.length + 1}`;
-                    micSelect.appendChild(opt);
-                });
             } catch (err) {
-                console.error("Error populating devices:", err);
-                alert("Could not access media devices. Please check your browser permissions.");
+                alert(`Error getting media devices: ${err.message}. Please check permissions.`);
                 showPage('menu');
             }
         }
-
-        function setupBroadcasterWorker() {
-            const workerCode = `
-                function arrayBufferToBase64(buffer) {
-                    let binary = '';
-                    const bytes = new Uint8Array(buffer);
-                    for (let i = 0; i < bytes.byteLength; i++) {
-                        binary += String.fromCharCode(bytes[i]);
-                    }
-                    return self.btoa(binary);
-                }
-
-                self.onmessage = (event) => {
-                    const { type, chunk } = event.data;
-                    chunk.arrayBuffer().then(buffer => {
-                        const base64Chunk = arrayBufferToBase64(buffer);
-                        self.postMessage({ type, chunk: base64Chunk });
-                    });
-                };
-            `;
-            const blob = new Blob([workerCode], { type: 'application/javascript' });
-            broadcasterWorker = new Worker(URL.createObjectURL(blob));
-
-            broadcasterWorker.onmessage = async (event) => {
-                const { type, chunk } = event.data;
-                if (!streamr) return;
-                try {
-                    await streamr.publish(STREAM_ID, { type, chunk });
-                    if (type === 'init') {
-                        if (metaPublishInterval) clearInterval(metaPublishInterval);
-                        metaPublishInterval = setInterval(async () => {
-                            if (streamr && chunk) {
-                                await streamr.publish(STREAM_ID, { type: 'init', chunk });
-                            }
-                        }, 10000);
-                    }
-                } catch (e) { console.error("Failed to publish chunk from worker:", e); }
-            };
-        }
-
-        async function startBroadcast(settings) {
-            showPage('broadcast');
-            if (!streamr) {
-                broadcastStatus.textContent = 'Connecting to Streamr...';
-                await preConnectStreamr();
-                if (!streamr) {
-                     broadcastStatus.textContent = 'Failed to connect to Streamr.';
-                     return;
-                }
-            }
-            
-            try {
-                const constraints = { 
-                    video: { 
-                        width: { ideal: settings.width }, height: { ideal: settings.height }, 
-                        frameRate: { ideal: settings.fps },
-                        deviceId: settings.videoDeviceId ? { exact: settings.videoDeviceId } : undefined
-                    }, 
-                    audio: {
-                        deviceId: settings.audioDeviceId ? { exact: settings.audioDeviceId } : undefined
-                    } 
-                };
-                broadcastStatus.textContent = `Accessing camera (${settings.width}x${settings.height} @ ${settings.fps}fps)...`;
-                localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                localVideo.srcObject = localStream;
-                broadcastStatus.textContent = `Broadcasting (~${settings.bitrate / 1000}kbps)...`;
-
-                setupBroadcasterWorker();
-                
-                const mediaRecorderOptions = { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: settings.bitrate };
-                mediaRecorder = new MediaRecorder(localStream, mediaRecorderOptions);
-                
-                let isFirstChunk = true;
-
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0 && broadcasterWorker) {
-                        const type = isFirstChunk ? 'init' : 'media';
-                        if (isFirstChunk) isFirstChunk = false;
-                        broadcasterWorker.postMessage({ type, chunk: event.data });
-                    }
-                };
-                
-                mediaRecorder.start(settings.timeslice);
-
-            } catch (error) {
-                console.error('Error starting broadcast:', error);
-                broadcastStatus.textContent = `Error: ${error.message}`;
-            }
-        }
         
-        function setupWatcherWorker() {
-            const workerCode = `
-                self.onmessage = (event) => {
-                    const { chunk } = event.data;
-                    const binary_string = self.atob(chunk);
-                    const len = binary_string.length;
-                    const bytes = new Uint8Array(len);
-                    for (let i = 0; i < len; i++) {
-                        bytes[i] = binary_string.charCodeAt(i);
-                    }
-                    self.postMessage(bytes.buffer, [bytes.buffer]);
-                };
-            `;
-            const blob = new Blob([workerCode], { type: 'application/javascript' });
-            watcherWorker = new Worker(URL.createObjectURL(blob));
-            watcherWorker.onmessage = (event) => {
-                receivedChunksQueue.push(event.data);
-                processNextChunk();
-            };
-        }
-
-        function resetPlayerState() {
-            console.log("Stream is stale or being reset. Looking for new broadcast...");
-            isPlayerInitialized = false;
-            
-            if (remoteVideo.src) {
-                URL.revokeObjectURL(remoteVideo.src);
+        // --- Event Listeners for Sliders ---
+        resolutionSlider.addEventListener('input', (e) => {
+            resolutionValue.textContent = resolutions[e.target.value].text;
+        });
+        bitrateSlider.addEventListener('input', (e) => {
+            bitrateValue.textContent = `${(e.target.value / 1000000).toFixed(1)} Mbps`;
+        });
+        framerateSlider.addEventListener('input', (e) => {
+            framerateValue.textContent = `${e.target.value} fps`;
+        });
+        volumeSlider.addEventListener('input', (e) => {
+            if (gainNode) {
+                gainNode.gain.setValueAtTime(e.target.value / 100, audioContext.currentTime);
             }
-            setupReceiver();
+        });
 
-            sourceBuffer = null;
-            receivedChunksQueue.length = 0;
-            statusDot.className = 'status-dot dot-yellow';
-            statusDot.title = 'Interrupted';
-            watchStatus.textContent = 'Stream interrupted. Looking for a new broadcast...';
-        }
 
-        async function startWatch() {
-            showPage('watch');
-            if (!streamr) {
-                watchStatus.textContent = 'Connecting to Streamr...';
-                await preConnectStreamr();
-                 if (!streamr) {
-                     watchStatus.textContent = 'Failed to connect to Streamr.';
-                     return;
-                }
-            }
-            
-            setupReceiver();
-            setupWatcherWorker();
-            watchStatus.textContent = `Looking for a broadcast...`;
-
-            if (streamHealthCheckInterval) clearInterval(streamHealthCheckInterval);
-            streamHealthCheckInterval = setInterval(() => {
-                if (isPlayerInitialized && (Date.now() - lastChunkTimestamp > STALE_STREAM_TIMEOUT)) {
-                    resetPlayerState();
-                }
-            }, 2000);
-
+        // --- Core Logic ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            menuStatus.textContent = 'Connecting to the P2P network...';
             try {
-                subscription = await streamr.subscribe({ id: STREAM_ID }, (message) => {
-                    lastChunkTimestamp = Date.now();
-                    if (!isPlayerInitialized) {
-                        if (message.type === 'init' && message.chunk) {
-                            isPlayerInitialized = true;
-                            watcherWorker.postMessage({ chunk: message.chunk });
-                        }
-                        return;
-                    }
-                    if (message.type === 'media' && message.chunk) {
-                        watcherWorker.postMessage({ chunk: message.chunk });
-                    }
-                });
+                streamrClient = new StreamrClient();
+                await streamrClient.connect();
+                menuStatus.textContent = 'Ready. Choose an option.';
+                // goSettingsBtn is now permanently disabled
+                goWatchBtn.disabled = false;
             } catch (error) {
-                console.error('Subscription failed:', error);
-                watchStatus.textContent = 'Error subscribing to stream.';
+                console.error('Failed to initialize Streamr client:', error);
+                menuStatus.textContent = `Error connecting: ${error.message}. Please refresh.`;
             }
-        }
+        });
 
-        function setupReceiver() {
-            mediaSource = new MediaSource();
-            remoteVideo.src = URL.createObjectURL(mediaSource);
-            remoteVideo.addEventListener('playing', () => {
-                watchStatus.textContent = 'Receiving stream...';
-                statusDot.className = 'status-dot dot-green';
-            });
-            remoteVideo.addEventListener('waiting', () => {
-                watchStatus.textContent = 'Buffering...';
-                statusDot.className = 'status-dot dot-yellow-flashing';
-            });
-            mediaSource.addEventListener('sourceopen', () => console.log('MediaSource open.'));
-        }
-        
-        function processNextChunk() {
-            if (!mediaSource || mediaSource.readyState !== 'open' || isSourceBufferUpdating || receivedChunksQueue.length === 0) {
+        // --- Broadcaster ---
+        async function startBroadcast() {
+            if (!('VideoEncoder' in window && 'AudioEncoder' in window)) {
+                alert('Error: WebCodecs API not supported in this browser.');
                 return;
             }
+            showPage('broadcast');
+            isBroadcasting = true;
 
-            if (!sourceBuffer) {
-                 try {
-                    const mimeType = 'video/webm; codecs=vp8,opus';
-                    sourceBuffer = mediaSource.addSourceBuffer(mimeType);
-                    sourceBuffer.addEventListener('updateend', () => {
-                        isSourceBufferUpdating = false;
-                        if (remoteVideo.paused) {
-                            remoteVideo.play().catch(e => console.warn("Autoplay prevented", e.message));
+            const resolution = resolutions[resolutionSlider.value].value;
+            const [width, height] = resolution.split('x').map(Number);
+            const bitrate = parseInt(bitrateSlider.value, 10);
+            const framerate = parseInt(framerateSlider.value, 10);
+            const videoDeviceId = videoSourceSelect.value;
+            const audioDeviceId = audioSourceSelect.value;
+
+            try {
+                broadcastStatus.textContent = 'Requesting camera and mic access...';
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { deviceId: { exact: videoDeviceId }, width, height, frameRate: { ideal: framerate, max: framerate } },
+                    audio: { deviceId: { exact: audioDeviceId }, echoCancellation: true, noiseSuppression: true }
+                });
+                localVideo.srcObject = localStream;
+                
+                const videoTrack = localStream.getVideoTracks()[0];
+                const videoProcessor = new MediaStreamTrackProcessor({ track: videoTrack });
+                const videoFrameReader = videoProcessor.readable.getReader();
+                let videoConfig;
+
+                videoEncoder = new VideoEncoder({
+                    output: async (chunk, metadata) => {
+                        if (metadata.decoderConfig) videoConfig = metadata.decoderConfig;
+                        if (!videoConfig || !isBroadcasting) return;
+                        const chunkData = new Uint8Array(chunk.byteLength);
+                        chunk.copyTo(chunkData);
+                        const message = {
+                            chunk_type: chunk.type, timestamp: chunk.timestamp, duration: chunk.duration,
+                            data: Array.from(chunkData)
+                        };
+                        if (chunk.type === 'key') {
+                            const serializableConfig = { ...videoConfig };
+                            if (serializableConfig.description) {
+                                serializableConfig.description = Array.from(new Uint8Array(serializableConfig.description));
+                            }
+                            message.config = serializableConfig;
                         }
-                        processNextChunk();
-                    });
-                    statusDot.className = 'status-dot dot-yellow';
-                    watchStatus.textContent = 'Initializing player...';
-                 } catch (e) {
-                    console.error('Error creating SourceBuffer:', e);
-                    watchStatus.textContent = 'Video player error.';
-                    return;
-                 }
-            }
+                        await streamrClient.publish(VIDEO_STREAM_ID, message);
+                    },
+                    error: e => console.error(`VideoEncoder Error: ${e.message}`)
+                });
+                const vConfig = { codec: 'avc1.64002A', width, height, bitrate, framerate, hardwareAcceleration: 'prefer-hardware' };
+                await videoEncoder.configure(vConfig);
 
-            if (sourceBuffer && !sourceBuffer.updating) {
-                isSourceBufferUpdating = true;
-                try {
-                    sourceBuffer.appendBuffer(receivedChunksQueue.shift());
-                } catch (e) {
-                    console.error("Error appending buffer:", e);
-                    isSourceBufferUpdating = false;
+                const audioTrack = localStream.getAudioTracks()[0];
+                const audioProcessor = new MediaStreamTrackProcessor({ track: audioTrack });
+                const audioFrameReader = audioProcessor.readable.getReader();
+
+                audioEncoder = new AudioEncoder({
+                    output: async (chunk) => {
+                         if (!isBroadcasting) return;
+                        const chunkData = new Uint8Array(chunk.byteLength);
+                        chunk.copyTo(chunkData);
+                        const message = {
+                            timestamp: chunk.timestamp, duration: chunk.duration,
+                            data: Array.from(chunkData)
+                        };
+                        await streamrClient.publish(AUDIO_STREAM_ID, message);
+                    },
+                    error: e => console.error(`AudioEncoder Error: ${e.message}`)
+                });
+                const aConfig = { codec: 'opus', sampleRate: 48000, numberOfChannels: 1, bitrate: 64000 };
+                await audioEncoder.configure(aConfig);
+
+                broadcastStatus.textContent = `Broadcasting: ${width}x${height} @ ${framerate}fps`;
+
+                const readVideoFrames = async () => {
+                    while (isBroadcasting) {
+                        const { value: frame, done } = await videoFrameReader.read().catch(() => ({ done: true }));
+                        if (done) break;
+                        const forceKeyFrame = (Date.now() - lastKeyFrameTimestamp) > KEY_FRAME_INTERVAL_MS;
+                        if(forceKeyFrame) lastKeyFrameTimestamp = Date.now();
+                        if (videoEncoder.state === 'configured') videoEncoder.encode(frame, { keyFrame: forceKeyFrame });
+                        frame.close();
+                    }
+                };
+                const readAudioFrames = async () => {
+                    while (isBroadcasting) {
+                        const { value: frame, done } = await audioFrameReader.read().catch(() => ({ done: true }));
+                        if (done) break;
+                        if (audioEncoder.state === 'configured') audioEncoder.encode(frame);
+                        frame.close();
+                    }
+                };
+                readVideoFrames();
+                readAudioFrames();
+
+            } catch (error) {
+                console.error(`Broadcast start error: ${error.message}`);
+                alert(`Error starting broadcast: ${error.message}`);
+                goBackToMenu();
+            }
+        }
+        
+        async function stopBroadcast() {
+            isBroadcasting = false;
+            if(localStream) localStream.getTracks().forEach(track => track.stop());
+            if(videoEncoder?.state !== 'closed') videoEncoder.close();
+            if(audioEncoder?.state !== 'closed') audioEncoder.close();
+            localVideo.srcObject = null;
+        }
+
+        // --- Viewer ---
+        function checkStreamHealth() {
+            if (isViewing && lastChunkReceivedTimestamp > 0 && (Date.now() - lastChunkReceivedTimestamp > STALE_STREAM_TIMEOUT_MS)) {
+                if (!statusDot.classList.contains('dot-yellow-flashing')) {
+                    statusDot.className = 'status-dot dot-yellow-flashing';
+                    statusDot.title = 'Connection unstable';
+                    watchStatus.textContent = 'Connection unstable...';
                 }
             }
         }
         
-        async function goBackToMenu() {
-            if (metaPublishInterval) clearInterval(metaPublishInterval);
-            if (streamHealthCheckInterval) clearInterval(streamHealthCheckInterval);
-            
-            if (broadcasterWorker) broadcasterWorker.terminate();
-            if (localStream) localStream.getTracks().forEach(track => track.stop());
-
-            if (subscription) await subscription.unsubscribe();
-            if (watcherWorker) watcherWorker.terminate();
-            
-            if (mediaSource && mediaSource.readyState === 'open') {
-                 try {
-                    if (sourceBuffer && sourceBuffer.updating) sourceBuffer.abort();
-                    mediaSource.endOfStream();
-                } catch (e) { console.warn("Error closing MediaSource:", e.message); }
+        async function joinStream() {
+            if (!('VideoDecoder' in window && 'AudioDecoder' in window)) {
+                alert('Error: WebCodecs API not supported on this browser.');
+                return;
             }
-            remoteVideo.src = '';
+            showPage('watch');
+            isViewing = true;
+            watchStatus.textContent = 'Looking for a broadcast...';
+            statusDot.className = 'status-dot dot-yellow';
+            statusDot.title = 'Connecting...';
+
+            streamHealthInterval = setInterval(checkStreamHealth, 1000);
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            await audioContext.resume();
             
-            // Do not destroy streamr client on back, only on page unload
-            
-            // Reset state variables
-            localStream = null; subscription = null; mediaSource = null;
-            sourceBuffer = null; isSourceBufferUpdating = false; isPlayerInitialized = false;
-            metaPublishInterval = null; watcherWorker = null; broadcasterWorker = null;
-            streamHealthCheckInterval = null; lastChunkTimestamp = 0;
-            receivedChunksQueue.length = 0;
+            gainNode = audioContext.createGain();
+            gainNode.gain.setValueAtTime(volumeSlider.value / 100, audioContext.currentTime);
+            gainNode.connect(audioContext.destination);
+
+            videoDecoder = new VideoDecoder({
+                output: (frame) => {
+                    canvasContext.drawImage(frame, 0, 0, remoteCanvas.width, remoteCanvas.height);
+                    frame.close();
+                },
+                error: e => console.error(`VideoDecoder Error: ${e.message}`)
+            });
+
+            audioDecoder = new AudioDecoder({
+                output: (audioData) => {
+                    try {
+                        const buffer = audioContext.createBuffer(audioData.numberOfChannels, audioData.numberOfFrames, audioData.sampleRate);
+                        for (let i = 0; i < audioData.numberOfChannels; i++) {
+                            const channelData = new Float32Array(audioData.numberOfFrames);
+                            audioData.copyTo(channelData, { planeIndex: i });
+                            buffer.copyToChannel(channelData, i);
+                        }
+                        const source = audioContext.createBufferSource();
+                        source.buffer = buffer;
+                        source.connect(gainNode);
+                        source.start();
+                    } catch (e) {
+                         console.error("Error playing audio data:", e);
+                    }
+                },
+                error: e => console.error(`AudioDecoder Error: ${e.message}`)
+            });
+
+            const handleMessage = () => {
+                lastChunkReceivedTimestamp = Date.now();
+                if (statusDot.classList.contains('dot-yellow-flashing')) {
+                     statusDot.className = 'status-dot dot-green';
+                     statusDot.title = 'Connected';
+                     watchStatus.textContent = `Receiving: ${remoteCanvas.width}x${remoteCanvas.height}`;
+                }
+            };
+
+            videoSubscription = await streamrClient.subscribe(VIDEO_STREAM_ID, (message) => {
+                if (!isViewing) return;
+                handleMessage();
+                const chunk = new EncodedVideoChunk({
+                    type: message.chunk_type, timestamp: message.timestamp, duration: message.duration,
+                    data: new Uint8Array(message.data).buffer
+                });
+                if (message.config && videoDecoder.state === 'unconfigured') {
+                    const config = message.config;
+                    remoteCanvas.width = config.codedWidth;
+                    remoteCanvas.height = config.codedHeight;
+                    if (config.description) config.description = new Uint8Array(config.description).buffer;
+                    videoDecoder.configure(config);
+                    watchStatus.textContent = `Receiving: ${config.codedWidth}x${config.codedHeight}`;
+                    statusDot.className = 'status-dot dot-green';
+                    statusDot.title = 'Connected';
+                }
+                if (videoDecoder.state === 'configured') videoDecoder.decode(chunk);
+            });
+
+            audioSubscription = await streamrClient.subscribe(AUDIO_STREAM_ID, (message) => {
+                if (!isViewing) return;
+                handleMessage();
+                if (audioDecoder.state === 'unconfigured') {
+                     audioDecoder.configure({ codec: 'opus', sampleRate: 48000, numberOfChannels: 1 });
+                }
+                const chunk = new EncodedAudioChunk({
+                    type: 'key', timestamp: message.timestamp, duration: message.duration,
+                    data: new Uint8Array(message.data).buffer
+                });
+                if(audioDecoder.state === 'configured') audioDecoder.decode(chunk);
+            });
+        }
+        
+        async function stopViewing() {
+            isViewing = false;
+
+            if (streamHealthInterval) clearInterval(streamHealthInterval);
+            streamHealthInterval = null;
+            lastChunkReceivedTimestamp = 0;
             statusDot.className = 'status-dot dot-red';
+            statusDot.title = 'Disconnected';
+            
+            if (videoSubscription) await videoSubscription.unsubscribe();
+            if (audioSubscription) await audioSubscription.unsubscribe();
+            videoSubscription = null;
+            audioSubscription = null;
+
+            if(videoDecoder?.state !== 'closed') videoDecoder.close();
+            if(audioDecoder?.state !== 'closed') audioDecoder.close();
+            if(audioContext?.state !== 'closed') await audioContext.close();
+        }
+        
+        // --- Navigation and Cleanup ---
+        async function goBackToMenu() {
+            if (isBroadcasting) await stopBroadcast();
+            if (isViewing) await stopViewing();
             showPage('menu');
         }
 
-        // --- Event Listeners ---
+        function handleFullscreen() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                remoteCanvas.requestFullscreen().catch(err => {
+                    alert(`Fullscreen Error: ${err.message}`);
+                });
+            }
+        }
+        
         goSettingsBtn.onclick = async () => {
-            await populateDeviceSelectors();
+            await populateDeviceLists();
             showPage('settings');
         };
-        goWatchBtn.onclick = startWatch;
-        
-        startBroadcastBtn.onclick = () => {
-            const resolution = resolutionMap[resolutionSlider.value];
-            const settings = {
-                width: resolution.width,
-                height: resolution.height,
-                bitrate: parseInt(bitrateSlider.value, 10) * 1000,
-                fps: parseInt(fpsSlider.value, 10),
-                timeslice: parseInt(latencySlider.value, 10),
-                videoDeviceId: cameraSelect.value,
-                audioDeviceId: micSelect.value
-            };
-            startBroadcast(settings);
-        };
-
-        fullscreenBtn.onclick = () => {
-            if (remoteVideo.requestFullscreen) {
-                remoteVideo.requestFullscreen();
-            } else if (remoteVideo.webkitRequestFullscreen) { /* Safari */
-                remoteVideo.webkitRequestFullscreen();
-            } else if (remoteVideo.msRequestFullscreen) { /* IE11 */
-                remoteVideo.msRequestFullscreen();
-            }
-        };
-        
-        resolutionSlider.addEventListener('input', (e) => {
-            resolutionValue.textContent = resolutionMap[e.target.value].label;
-        });
-        bitrateSlider.addEventListener('input', (e) => {
-            const kbps = e.target.value;
-            bitrateValue.textContent = (kbps < 1000) ? `${kbps} kbps` : `${(kbps / 1000).toFixed(1)} Mbps`;
-        });
-        fpsSlider.addEventListener('input', (e) => {
-            fpsValue.textContent = `${e.target.value} FPS`;
-        });
-        latencySlider.addEventListener('input', (e) => {
-            latencyValue.textContent = `${e.target.value} ms`;
-        });
-        volumeSlider.oninput = (e) => {
-            remoteVideo.volume = e.target.value / 100;
-        };
+        goWatchBtn.onclick = joinStream;
+        startBroadcastBtn.onclick = startBroadcast;
         backBtns.forEach(btn => btn.onclick = goBackToMenu);
+        fullscreenBtn.onclick = handleFullscreen;
 
-        preConnectStreamr();
-    }
-    
-    function checkStreamrLibrary() {
-        if (window.StreamrClient && window.ethers) {
-            console.log("Streamr SDK and Ethers.js loaded.");
-            startApp();
-        } else {
-            console.log("Waiting for Streamr SDK and Ethers.js... Retrying in 100ms.");
-            setTimeout(checkStreamrLibrary, 100);
-        }
-    }
-
-    window.onload = checkStreamrLibrary;
     </script>
 </body>
 </html>

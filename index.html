@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -167,7 +168,13 @@
         <div id="broadcast-page" class="page">
              <div class="text-center mb-6">
                 <h1 class="text-3xl font-bold text-white">Broadcasting</h1>
-                <div id="broadcast-status" class="mt-1 text-zinc-400 text-sm">...</div>
+                <div class="flex items-center justify-center gap-4 mt-1 text-zinc-400 text-sm">
+                    <div id="broadcast-status">...</div>
+                    <div id="viewer-count-broadcaster" class="flex items-center gap-1 hidden">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                        <span id="viewer-count-broadcaster-value">0</span>
+                    </div>
+                </div>
             </div>
             <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
                 <video id="localVideo" autoplay playsinline muted class="w-full h-auto bg-black rounded-md"></video>
@@ -179,7 +186,13 @@
         <div id="watch-page" class="page">
             <div class="text-center mb-6">
                  <h1 class="text-3xl font-bold text-white">Watching Stream</h1>
-                 <div id="watch-status" class="mt-1 text-zinc-400 text-sm">...</div>
+                 <div class="flex items-center justify-center gap-4 mt-1 text-zinc-400 text-sm">
+                    <div id="watch-status">...</div>
+                    <div id="viewer-count-watcher" class="flex items-center gap-1 hidden">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                        <span id="viewer-count-watcher-value">0</span>
+                    </div>
+                 </div>
             </div>
             <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
                 <div class="relative group">
@@ -216,6 +229,7 @@
         const STREAM_BASE = '0xd5a8024414f59cf0c453c35fc3655a31251645f6';
         const VIDEO_STREAM_ID = `${STREAM_BASE}/app5`;
         const AUDIO_STREAM_ID = `${STREAM_BASE}/app6`;
+        const PRESENCE_STREAM_ID = `${STREAM_BASE}/app2`;
         
         // --- UI Elements ---
         const pages = {
@@ -241,6 +255,11 @@
         const menuStatus = document.getElementById('menu-status');
         const fullscreenBtn = document.getElementById('fullscreen-btn');
         
+        const viewerCountBroadcaster = document.getElementById('viewer-count-broadcaster');
+        const viewerCountBroadcasterValue = document.getElementById('viewer-count-broadcaster-value');
+        const viewerCountWatcher = document.getElementById('viewer-count-watcher');
+        const viewerCountWatcherValue = document.getElementById('viewer-count-watcher-value');
+
         const videoSourceSelect = document.getElementById('videoSourceSelect');
         const audioSourceSelect = document.getElementById('audioSourceSelect');
         const resolutionSlider = document.getElementById('resolutionSlider');
@@ -266,7 +285,7 @@
         let videoDecoder, audioDecoder;
         let localStream;
         let audioContext, gainNode;
-        let videoSubscription, audioSubscription;
+        let videoSubscription, audioSubscription, presenceSubscription;
         let isBroadcasting = false;
         let isViewing = false;
         let lastKeyFrameTimestamp = 0;
@@ -274,6 +293,17 @@
         let lastChunkReceivedTimestamp = 0;
         let streamHealthInterval = null;
         const STALE_STREAM_TIMEOUT_MS = 3000;
+        
+        // Presence state
+        let currentUserId = null;
+        let viewers = new Map();
+        let presenceHeartbeatInterval = null;
+        let broadcasterPresenceInterval = null;
+        const VIEWER_TIMEOUT_MS = 15000; // 15 seconds
+        const HEARTBEAT_INTERVAL_MS = 10000; // 10 seconds
+
+        // Viewer state
+        let detailedWatchStatus = 'Looking for a broadcast...';
 
 
         // --- Helper Functions ---
@@ -331,7 +361,7 @@
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-                // goSettingsBtn is now permanently disabled
+             //   goSettingsBtn.disabled = false;
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
@@ -347,6 +377,7 @@
             }
             showPage('broadcast');
             isBroadcasting = true;
+            startBroadcasterPresence();
 
             const resolution = resolutions[resolutionSlider.value].value;
             const [width, height] = resolution.split('x').map(Number);
@@ -356,7 +387,9 @@
             const audioDeviceId = audioSourceSelect.value;
 
             try {
-                broadcastStatus.textContent = 'Requesting camera and mic access...';
+                const statusText = `Broadcasting: ${width}x${height} @ ${framerate}fps, ~${(bitrate / 1000000).toFixed(1)}Mbps`;
+                broadcastStatus.textContent = statusText;
+
                 localStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { deviceId: { exact: videoDeviceId }, width, height, frameRate: { ideal: framerate, max: framerate } },
                     audio: { deviceId: { exact: audioDeviceId }, echoCancellation: true, noiseSuppression: true }
@@ -383,6 +416,7 @@
                             if (serializableConfig.description) {
                                 serializableConfig.description = Array.from(new Uint8Array(serializableConfig.description));
                             }
+                            serializableConfig.streamSettings = { width, height, framerate, bitrate };
                             message.config = serializableConfig;
                         }
                         await streamrClient.publish(VIDEO_STREAM_ID, message);
@@ -411,8 +445,6 @@
                 });
                 const aConfig = { codec: 'opus', sampleRate: 48000, numberOfChannels: 1, bitrate: 64000 };
                 await audioEncoder.configure(aConfig);
-
-                broadcastStatus.textContent = `Broadcasting: ${width}x${height} @ ${framerate}fps`;
 
                 const readVideoFrames = async () => {
                     while (isBroadcasting) {
@@ -444,6 +476,7 @@
         
         async function stopBroadcast() {
             isBroadcasting = false;
+            stopBroadcasterPresence();
             if(localStream) localStream.getTracks().forEach(track => track.stop());
             if(videoEncoder?.state !== 'closed') videoEncoder.close();
             if(audioEncoder?.state !== 'closed') audioEncoder.close();
@@ -468,7 +501,8 @@
             }
             showPage('watch');
             isViewing = true;
-            watchStatus.textContent = 'Looking for a broadcast...';
+            startViewerPresence();
+            watchStatus.textContent = detailedWatchStatus;
             statusDot.className = 'status-dot dot-yellow';
             statusDot.title = 'Connecting...';
 
@@ -514,7 +548,7 @@
                 if (statusDot.classList.contains('dot-yellow-flashing')) {
                      statusDot.className = 'status-dot dot-green';
                      statusDot.title = 'Connected';
-                     watchStatus.textContent = `Receiving: ${remoteCanvas.width}x${remoteCanvas.height}`;
+                     watchStatus.textContent = detailedWatchStatus;
                 }
             };
 
@@ -529,9 +563,18 @@
                     const config = message.config;
                     remoteCanvas.width = config.codedWidth;
                     remoteCanvas.height = config.codedHeight;
+                    
+                    if (config.streamSettings) {
+                        const s = config.streamSettings;
+                        detailedWatchStatus = `Receiving: ${s.width}x${s.height} @ ${s.framerate}fps, ~${(s.bitrate / 1000000).toFixed(1)}Mbps`;
+                    } else {
+                        detailedWatchStatus = `Receiving: ${config.codedWidth}x${config.codedHeight}`;
+                    }
+                    watchStatus.textContent = detailedWatchStatus;
+
                     if (config.description) config.description = new Uint8Array(config.description).buffer;
                     videoDecoder.configure(config);
-                    watchStatus.textContent = `Receiving: ${config.codedWidth}x${config.codedHeight}`;
+                    
                     statusDot.className = 'status-dot dot-green';
                     statusDot.title = 'Connected';
                 }
@@ -554,12 +597,14 @@
         
         async function stopViewing() {
             isViewing = false;
+            stopViewerPresence(true);
 
             if (streamHealthInterval) clearInterval(streamHealthInterval);
             streamHealthInterval = null;
             lastChunkReceivedTimestamp = 0;
             statusDot.className = 'status-dot dot-red';
             statusDot.title = 'Disconnected';
+            detailedWatchStatus = 'Looking for a broadcast...';
             
             if (videoSubscription) await videoSubscription.unsubscribe();
             if (audioSubscription) await audioSubscription.unsubscribe();
@@ -569,6 +614,78 @@
             if(videoDecoder?.state !== 'closed') videoDecoder.close();
             if(audioDecoder?.state !== 'closed') audioDecoder.close();
             if(audioContext?.state !== 'closed') await audioContext.close();
+        }
+
+        // --- Presence Logic ---
+        function updateViewerCountUI(count) {
+            viewerCountBroadcasterValue.textContent = count;
+            viewerCountWatcherValue.textContent = count;
+            viewerCountBroadcaster.classList.toggle('hidden', count < 0);
+            viewerCountWatcher.classList.toggle('hidden', count < 0);
+        }
+
+        async function startBroadcasterPresence() {
+            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, (message) => {
+                if(message.userId) {
+                    if(message.type === 'join' || message.type === 'heartbeat') {
+                        viewers.set(message.userId, Date.now());
+                    } else if (message.type === 'leave') {
+                        viewers.delete(message.userId);
+                    }
+                }
+            });
+
+            broadcasterPresenceInterval = setInterval(async () => {
+                const now = Date.now();
+                let changed = false;
+                for (const [userId, lastSeen] of viewers.entries()) {
+                    if (now - lastSeen > VIEWER_TIMEOUT_MS) {
+                        viewers.delete(userId);
+                        changed = true;
+                    }
+                }
+                const count = viewers.size;
+                updateViewerCountUI(count);
+                // Publish count only if it changes or periodically
+                await streamrClient.publish(PRESENCE_STREAM_ID, { type: 'viewer_count_update', count });
+
+            }, 5000); // Check every 5 seconds
+        }
+
+        function stopBroadcasterPresence() {
+             if (broadcasterPresenceInterval) clearInterval(broadcasterPresenceInterval);
+             if (presenceSubscription) presenceSubscription.unsubscribe();
+             broadcasterPresenceInterval = null;
+             presenceSubscription = null;
+             viewers.clear();
+             updateViewerCountUI(-1);
+        }
+
+        async function startViewerPresence() {
+            currentUserId = `viewer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            await streamrClient.publish(PRESENCE_STREAM_ID, { type: 'join', userId: currentUserId });
+
+            presenceHeartbeatInterval = setInterval(() => {
+                 streamrClient.publish(PRESENCE_STREAM_ID, { type: 'heartbeat', userId: currentUserId });
+            }, HEARTBEAT_INTERVAL_MS);
+
+            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, (message) => {
+                if (message.type === 'viewer_count_update') {
+                    updateViewerCountUI(message.count);
+                }
+            });
+        }
+        
+        function stopViewerPresence(shouldSendLeave = false) {
+            if (presenceHeartbeatInterval) clearInterval(presenceHeartbeatInterval);
+            if (presenceSubscription) presenceSubscription.unsubscribe();
+            presenceHeartbeatInterval = null;
+            presenceSubscription = null;
+            if(shouldSendLeave && currentUserId) {
+                streamrClient.publish(PRESENCE_STREAM_ID, { type: 'leave', userId: currentUserId });
+            }
+            currentUserId = null;
+            updateViewerCountUI(-1);
         }
         
         // --- Navigation and Cleanup ---
@@ -597,7 +714,12 @@
         backBtns.forEach(btn => btn.onclick = goBackToMenu);
         fullscreenBtn.onclick = handleFullscreen;
 
+        window.addEventListener('beforeunload', () => {
+             if(isViewing && currentUserId) {
+                 streamrClient.publish(PRESENCE_STREAM_ID, { type: 'leave', userId: currentUserId });
+             }
+        });
+
     </script>
 </body>
 </html>
-

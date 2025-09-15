@@ -213,7 +213,28 @@
                     <div class="absolute top-2 right-2 bg-zinc-900/50 backdrop-blur-sm rounded-full p-2">
                         <span id="statusDot" class="status-dot dot-red" title="Disconnected"></span>
                     </div>
-                    <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                     <div class="absolute bottom-4 left-4 right-4 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <button id="back-to-menu-watch" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Stop and Go Back">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+
+                        <button id="playPauseBtn" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Play/Pause">
+                            <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white hidden" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                            </svg>
+                            <svg id="pauseIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+
+                        <div class="flex items-center gap-2 w-24">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
+                            </svg>
+                            <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-full">
+                        </div>
                          <button id="fullscreen-btn" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Fullscreen">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m0 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5h-4m0 0v-4m0 4l-5-5" />
@@ -221,17 +242,22 @@
                         </button>
                     </div>
                 </div>
-                <div class="mt-4 flex justify-between items-center gap-4 px-2">
-                    <button id="back-to-menu-watch" class="p-2 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors" title="Stop and Go Back">
-                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
-                    <div class="flex items-center gap-2 flex-grow">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
-                        </svg>
-                        <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-full">
+                <div class="mt-4 flex flex-col gap-4 px-2">
+                     <div class="space-y-2">
+                        <div class="flex justify-end items-center">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="liveModeCheckbox" class="sr-only peer" checked>
+                                <div class="w-11 h-6 bg-zinc-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zinc-600"></div>
+                                <span class="ml-3 text-sm font-medium text-zinc-300">Live Mode</span>
+                            </label>
+                        </div>
+                        <div id="latency-controls" class="hidden">
+                            <label for="bufferSlider" class="text-sm font-medium text-zinc-300">Latency vs Stability</label>
+                            <div id="buffer-slider-container">
+                                <input id="bufferSlider" type="range" min="100" max="3000" value="200" step="100">
+                                <span id="bufferValue" class="text-sm font-mono text-zinc-400 text-center block mt-1">200 ms</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -267,6 +293,9 @@
         const statusDot = document.getElementById('statusDot');
         const menuStatus = document.getElementById('menu-status');
         const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
         
         const viewerCountBroadcaster = document.getElementById('viewer-count-broadcaster');
         const viewerCountBroadcasterValue = document.getElementById('viewer-count-broadcaster-value');
@@ -286,6 +315,11 @@
         const keyframeIntervalSlider = document.getElementById('keyframeIntervalSlider');
         const keyframeIntervalValue = document.getElementById('keyframeIntervalValue');
         const volumeSlider = document.getElementById('volume-slider');
+        const bufferSlider = document.getElementById('bufferSlider');
+        const bufferValue = document.getElementById('bufferValue');
+        const liveModeCheckbox = document.getElementById('liveModeCheckbox');
+        const latencyControls = document.getElementById('latency-controls');
+
         
         const canvasContext = remoteCanvas.getContext('2d');
 
@@ -320,7 +354,15 @@
 
         // Viewer state
         let detailedWatchStatus = 'Looking for a broadcast...';
-
+        let videoBuffer = [];
+        let audioBuffer = [];
+        let isPlaying = false;
+        let isManuallyPaused = false;
+        let playbackStartTime = 0;
+        let mediaStartTime = 0;
+        let bufferTargetMs = 200;
+        let renderLoopId = null;
+        let isLiveMode = true;
 
         // --- Helper Functions ---
         function arrayBufferToBase64(buffer) {
@@ -418,6 +460,32 @@
                 gainNode.gain.setValueAtTime(e.target.value / 100, audioContext.currentTime);
             }
         });
+        bufferSlider.addEventListener('input', (e) => {
+            bufferTargetMs = parseInt(e.target.value, 10);
+            bufferValue.textContent = `${bufferTargetMs} ms`;
+             if (isPlaying) {
+                const videoDuration = (videoBuffer.length > 1) ? (videoBuffer[videoBuffer.length - 1].timestamp - videoBuffer[0].timestamp) / 1000 : 0;
+                if (bufferTargetMs > videoDuration) {
+                    isPlaying = false;
+                    watchStatus.textContent = "Buffering...";
+                    statusDot.className = 'status-dot dot-yellow-flashing';
+                }
+            }
+        });
+
+        liveModeCheckbox.addEventListener('change', (e) => {
+            isLiveMode = e.target.checked;
+            latencyControls.classList.toggle('hidden', isLiveMode);
+            videoBuffer = [];
+            audioBuffer = [];
+            isPlaying = false;
+            isManuallyPaused = false;
+            updatePlayPauseButton();
+            watchStatus.textContent = detailedWatchStatus;
+            if (!isLiveMode) {
+                watchStatus.textContent = 'Buffering...';
+            }
+        });
 
 
         // --- Core Logic ---
@@ -427,7 +495,7 @@
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-           //     goSettingsBtn.disabled = false;
+                goSettingsBtn.disabled = false;
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
@@ -493,7 +561,6 @@
 
                 localStream = await navigator.mediaDevices.getUserMedia(constraints);
                 
-                // Video Encoding
                 if (hasVideo && localStream.getVideoTracks().length > 0) {
                     localVideo.srcObject = localStream;
                     let lastSentVideoConfig = null;
@@ -554,7 +621,6 @@
                     readVideoFrames();
                 }
 
-                // Audio Encoding
                 if (hasAudio && localStream.getAudioTracks().length > 0) {
                      audioEncoder = new AudioEncoder({
                         output: async (chunk) => {
@@ -610,10 +676,78 @@
                 if (!statusDot.classList.contains('dot-yellow-flashing')) {
                     statusDot.className = 'status-dot dot-yellow-flashing';
                     statusDot.title = 'Connection unstable';
-                    watchStatus.textContent = 'Connection unstable...';
+                    watchStatus.textContent = 'Buffering...';
+                    isPlaying = false;
                 }
             }
         }
+
+        const renderLoop = () => {
+            if (!isViewing) return;
+
+            if (!isLiveMode && !isManuallyPaused) {
+                if (!isPlaying) {
+                    schedulePlayback(); 
+                } else {
+                     const elapsedSec = audioContext.currentTime - playbackStartTime;
+                    const mediaTimeUs = mediaStartTime + (elapsedSec * 1000000);
+
+                    let lastFrameToRender = null;
+                    while(videoBuffer.length > 0 && videoBuffer[0].timestamp <= mediaTimeUs) {
+                        lastFrameToRender = videoBuffer.shift();
+                    }
+
+                    if (lastFrameToRender) {
+                        canvasContext.drawImage(lastFrameToRender, 0, 0, remoteCanvas.width, remoteCanvas.height);
+                        lastFrameToRender.close();
+                    }
+                    
+                    if (videoBuffer.length === 0 || audioBuffer.length === 0) {
+                        isPlaying = false;
+                        watchStatus.textContent = "Buffering...";
+                        statusDot.className = 'status-dot dot-yellow-flashing';
+                    }
+                }
+            }
+            requestAnimationFrame(renderLoop);
+        };
+        
+        const schedulePlayback = () => {
+            if (isPlaying || videoBuffer.length < 2 || audioBuffer.length < 2 || isManuallyPaused) {
+                return;
+            }
+
+            const videoDuration = (videoBuffer[videoBuffer.length - 1].timestamp - videoBuffer[0].timestamp) / 1000;
+            const audioDuration = (audioBuffer[audioBuffer.length - 1].timestamp - audioBuffer[0].timestamp) / 1000;
+
+            if (videoDuration >= bufferTargetMs && audioDuration >= bufferTargetMs) {
+                isPlaying = true;
+                mediaStartTime = Math.min(videoBuffer[0].timestamp, audioBuffer[0].timestamp);
+                playbackStartTime = audioContext.currentTime;
+
+                const elapsedSec = audioContext.currentTime - playbackStartTime;
+                const mediaTimeUs = mediaStartTime + (elapsedSec * 1000000);
+
+                 while (audioBuffer.length > 0 && audioBuffer[0].timestamp <= mediaTimeUs) {
+                    const audioData = audioBuffer.shift();
+                    try {
+                        const buffer = audioContext.createBuffer(audioData.numberOfChannels, audioData.numberOfFrames, audioData.sampleRate);
+                        for (let i = 0; i < audioData.numberOfChannels; i++) {
+                            const channelData = new Float32Array(audioData.numberOfFrames);
+                            audioData.copyTo(channelData, { planeIndex: i });
+                            buffer.copyToChannel(channelData, i);
+                        }
+                        const source = audioContext.createBufferSource();
+                        source.buffer = buffer;
+                        source.connect(gainNode);
+                        source.start(playbackStartTime);
+                    } catch (err) { console.error("Error playing audio data:", err); }
+                }
+
+                watchStatus.textContent = detailedWatchStatus;
+                statusDot.className = 'status-dot dot-green';
+            }
+        };
         
         async function joinStream() {
             if (!window.VideoDecoder || !window.AudioDecoder) {
@@ -628,6 +762,7 @@
             statusDot.title = 'Connecting...';
 
             streamHealthInterval = setInterval(checkStreamHealth, 1000);
+            renderLoopId = requestAnimationFrame(renderLoop);
 
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             await audioContext.resume();
@@ -638,26 +773,36 @@
 
             videoDecoder = new VideoDecoder({
                 output: (frame) => {
-                    canvasContext.drawImage(frame, 0, 0, remoteCanvas.width, remoteCanvas.height);
-                    frame.close();
+                    if (isLiveMode && !isManuallyPaused) {
+                        canvasContext.drawImage(frame, 0, 0, remoteCanvas.width, remoteCanvas.height);
+                        frame.close();
+                    } else {
+                        videoBuffer.push(frame);
+                        videoBuffer.sort((a, b) => a.timestamp - b.timestamp);
+                    }
                 },
                 error: e => console.error(`VideoDecoder Error: ${e.message}`)
             });
 
             audioDecoder = new AudioDecoder({
                 output: (audioData) => {
-                     try {
-                        const buffer = audioContext.createBuffer(audioData.numberOfChannels, audioData.numberOfFrames, audioData.sampleRate);
-                        for (let i = 0; i < audioData.numberOfChannels; i++) {
-                            const channelData = new Float32Array(audioData.numberOfFrames);
-                            audioData.copyTo(channelData, { planeIndex: i });
-                            buffer.copyToChannel(channelData, i);
-                        }
-                        const source = audioContext.createBufferSource();
-                        source.buffer = buffer;
-                        source.connect(gainNode);
-                        source.start();
-                    } catch (err) { console.error("Error playing audio data:", err); }
+                     if (isLiveMode && !isManuallyPaused) {
+                        try {
+                            const buffer = audioContext.createBuffer(audioData.numberOfChannels, audioData.numberOfFrames, audioData.sampleRate);
+                            for (let i = 0; i < audioData.numberOfChannels; i++) {
+                                const channelData = new Float32Array(audioData.numberOfFrames);
+                                audioData.copyTo(channelData, { planeIndex: i });
+                                buffer.copyToChannel(channelData, i);
+                            }
+                            const source = audioContext.createBufferSource();
+                            source.buffer = buffer;
+                            source.connect(gainNode);
+                            source.start();
+                        } catch (err) { console.error("Error playing audio data:", err); }
+                    } else {
+                        audioBuffer.push(audioData);
+                        audioBuffer.sort((a, b) => a.timestamp - b.timestamp);
+                    }
                 },
                 error: e => console.error(`AudioDecoder Error: ${e.message}`)
             });
@@ -723,6 +868,14 @@
         async function stopViewing() {
             isViewing = false;
             stopViewerPresence(true);
+
+            if(renderLoopId) cancelAnimationFrame(renderLoopId);
+            renderLoopId = null;
+            videoBuffer = [];
+            audioBuffer = [];
+            isPlaying = false;
+            isManuallyPaused = false;
+
 
             if (streamHealthInterval) clearInterval(streamHealthInterval);
             streamHealthInterval = null;
@@ -811,6 +964,11 @@
             currentUserId = null;
             updateViewerCountUI(-1);
         }
+
+        function updatePlayPauseButton() {
+            playIcon.classList.toggle('hidden', !isManuallyPaused);
+            pauseIcon.classList.toggle('hidden', isManuallyPaused);
+        }
         
         // --- Navigation and Cleanup ---
         async function goBackToMenu() {
@@ -837,6 +995,23 @@
         startBroadcastBtn.onclick = startBroadcast;
         backBtns.forEach(btn => btn.onclick = goBackToMenu);
         fullscreenBtn.onclick = handleFullscreen;
+        playPauseBtn.onclick = () => {
+            isManuallyPaused = !isManuallyPaused;
+            updatePlayPauseButton();
+
+            if (isManuallyPaused) {
+                isPlaying = false; // Stop the render loop from processing buffer
+                 if (audioContext && audioContext.state === 'running') {
+                    audioContext.suspend();
+                }
+            } else {
+                 if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                // When we unpause, kickstart the playback logic again.
+                schedulePlayback(); 
+            }
+        };
 
         window.addEventListener('beforeunload', () => {
              if(isViewing && currentUserId) {

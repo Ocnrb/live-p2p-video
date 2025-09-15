@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -130,32 +129,32 @@
             <div class="bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8 space-y-6 text-left max-w-md mx-auto">
                 <div>
                     <label for="videoSourceSelect" class="block mb-2 text-sm font-medium text-zinc-300">Camera</label>
-                    <select id="videoSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5"></select>
+                    <select id="videoSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5 disabled:opacity-50" disabled></select>
                 </div>
                 <div>
                     <label for="audioSourceSelect" class="block mb-2 text-sm font-medium text-zinc-300">Microphone</label>
-                    <select id="audioSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5"></select>
+                    <select id="audioSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5 disabled:opacity-50" disabled></select>
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <label for="resolutionSlider" class="text-sm font-medium text-zinc-300">Resolution</label>
                         <span id="resolutionValue" class="text-sm font-mono text-zinc-400">720p</span>
                     </div>
-                    <input id="resolutionSlider" type="range" min="0" max="2" value="1" step="1">
+                    <input id="resolutionSlider" type="range" min="0" max="2" value="1" step="1" class="disabled:opacity-50">
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <label for="bitrateSlider" class="text-sm font-medium text-zinc-300">Bitrate</label>
                         <span id="bitrateValue" class="text-sm font-mono text-zinc-400">2.0 Mbps</span>
                     </div>
-                    <input id="bitrateSlider" type="range" min="500000" max="5000000" value="2000000" step="100000">
+                    <input id="bitrateSlider" type="range" min="500000" max="5000000" value="2000000" step="100000" class="disabled:opacity-50">
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <label for="framerateSlider" class="text-sm font-medium text-zinc-300">Frame Rate</label>
                         <span id="framerateValue" class="text-sm font-mono text-zinc-400">30 fps</span>
                     </div>
-                    <input id="framerateSlider" type="range" min="15" max="60" value="30" step="1">
+                    <input id="framerateSlider" type="range" min="15" max="60" value="30" step="1" class="disabled:opacity-50">
                 </div>
             </div>
             <div class="mt-8 flex justify-center gap-4">
@@ -224,7 +223,7 @@
             </div>
         </div>
     </div>
-
+    
     <script>
         const STREAM_BASE = '0xd5a8024414f59cf0c453c35fc3655a31251645f6';
         const VIDEO_STREAM_ID = `${STREAM_BASE}/app5`;
@@ -293,7 +292,7 @@
         let lastChunkReceivedTimestamp = 0;
         let streamHealthInterval = null;
         const STALE_STREAM_TIMEOUT_MS = 3000;
-        
+
         // Presence state
         let currentUserId = null;
         let viewers = new Map();
@@ -307,6 +306,25 @@
 
 
         // --- Helper Functions ---
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binary_string = window.atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
         function showPage(pageName) {
             Object.values(pages).forEach(p => p.classList.remove('active'));
             if(pages[pageName]) pages[pageName].classList.add('active');
@@ -314,23 +332,44 @@
 
         async function populateDeviceLists() {
             try {
-                await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
                 const devices = await navigator.mediaDevices.enumerateDevices();
+                
                 videoSourceSelect.innerHTML = '';
                 audioSourceSelect.innerHTML = '';
+
+                let hasVideo = false;
+                let hasAudio = false;
+
                 devices.forEach(device => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     if (device.kind === 'videoinput') {
                         option.text = device.label || `Camera ${videoSourceSelect.length + 1}`;
                         videoSourceSelect.appendChild(option);
+                        hasVideo = true;
                     } else if (device.kind === 'audioinput') {
                         option.text = device.label || `Microphone ${audioSourceSelect.length + 1}`;
                         audioSourceSelect.appendChild(option);
+                        hasAudio = true;
                     }
                 });
-                const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-                tempStream.getTracks().forEach(track => track.stop());
+                
+                if (hasVideo && videoSourceSelect.options[0].text.startsWith('Camera')) {
+                    const tempStream = await navigator.mediaDevices.getUserMedia({ audio: hasAudio, video: hasVideo });
+                    tempStream.getTracks().forEach(track => track.stop());
+                    await populateDeviceLists(); // Recurse to get labels
+                    return;
+                }
+
+                videoSourceSelect.disabled = !hasVideo;
+                audioSourceSelect.disabled = !hasAudio;
+                resolutionSlider.disabled = !hasVideo;
+                bitrateSlider.disabled = !hasVideo;
+                framerateSlider.disabled = !hasVideo;
+
+                startBroadcastBtn.disabled = !hasVideo && !hasAudio;
+                if (!hasVideo && !hasAudio) alert("No camera or microphone found.");
+
             } catch (err) {
                 alert(`Error getting media devices: ${err.message}. Please check permissions.`);
                 showPage('menu');
@@ -361,7 +400,7 @@
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-             //   goSettingsBtn.disabled = false;
+              ///  goSettingsBtn.disabled = false;
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
@@ -371,10 +410,18 @@
 
         // --- Broadcaster ---
         async function startBroadcast() {
-            if (!('VideoEncoder' in window && 'AudioEncoder' in window)) {
+            if (!window.VideoEncoder || !window.AudioEncoder) {
                 alert('Error: WebCodecs API not supported in this browser.');
                 return;
             }
+
+            const hasVideo = videoSourceSelect.options.length > 0;
+            const hasAudio = audioSourceSelect.options.length > 0;
+            if(!hasVideo && !hasAudio) {
+                alert("No devices to broadcast.");
+                return;
+            }
+
             showPage('broadcast');
             isBroadcasting = true;
             startBroadcasterPresence();
@@ -385,87 +432,105 @@
             const framerate = parseInt(framerateSlider.value, 10);
             const videoDeviceId = videoSourceSelect.value;
             const audioDeviceId = audioSourceSelect.value;
+            
+            const constraints = {};
+            if(hasVideo) constraints.video = { deviceId: { exact: videoDeviceId }, width, height, frameRate: { ideal: framerate, max: framerate } };
+            if(hasAudio) constraints.audio = { deviceId: { exact: audioDeviceId }, echoCancellation: true, noiseSuppression: true };
 
             try {
-                const statusText = `Broadcasting: ${width}x${height} @ ${framerate}fps, ~${(bitrate / 1000000).toFixed(1)}Mbps`;
+                let statusText = 'Broadcasting ';
+                if(hasVideo) statusText += `Video(${width}x${height}@${framerate}fps, ~${(bitrate / 1000000).toFixed(1)}Mbps)`;
+                if(hasVideo && hasAudio) statusText += " & ";
+                if(hasAudio) statusText += 'Audio';
                 broadcastStatus.textContent = statusText;
 
-                localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { deviceId: { exact: videoDeviceId }, width, height, frameRate: { ideal: framerate, max: framerate } },
-                    audio: { deviceId: { exact: audioDeviceId }, echoCancellation: true, noiseSuppression: true }
-                });
-                localVideo.srcObject = localStream;
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
                 
-                const videoTrack = localStream.getVideoTracks()[0];
-                const videoProcessor = new MediaStreamTrackProcessor({ track: videoTrack });
-                const videoFrameReader = videoProcessor.readable.getReader();
-                let videoConfig;
+                if (hasVideo) localVideo.srcObject = localStream;
+                
+                // Video Encoding
+                if (localStream.getVideoTracks().length > 0) {
+                    let lastSentVideoConfig = null;
+                    videoEncoder = new VideoEncoder({
+                        output: async (chunk, metadata) => {
+                            if (metadata.decoderConfig) lastSentVideoConfig = metadata.decoderConfig;
+                            if (!lastSentVideoConfig || !isBroadcasting) return;
+                            
+                            const chunkData = new Uint8Array(chunk.byteLength);
+                            chunk.copyTo(chunkData);
 
-                videoEncoder = new VideoEncoder({
-                    output: async (chunk, metadata) => {
-                        if (metadata.decoderConfig) videoConfig = metadata.decoderConfig;
-                        if (!videoConfig || !isBroadcasting) return;
-                        const chunkData = new Uint8Array(chunk.byteLength);
-                        chunk.copyTo(chunkData);
-                        const message = {
-                            chunk_type: chunk.type, timestamp: chunk.timestamp, duration: chunk.duration,
-                            data: Array.from(chunkData)
-                        };
-                        if (chunk.type === 'key') {
-                            const serializableConfig = { ...videoConfig };
-                            if (serializableConfig.description) {
-                                serializableConfig.description = Array.from(new Uint8Array(serializableConfig.description));
+                            const message = {
+                                type: chunk.type, 
+                                timestamp: chunk.timestamp, 
+                                duration: chunk.duration,
+                                data_base64: arrayBufferToBase64(chunkData.buffer)
+                            };
+
+                            if (chunk.type === 'key') {
+                                const serializableConfig = { ...lastSentVideoConfig };
+                                if (serializableConfig.description) {
+                                    serializableConfig.description = Array.from(new Uint8Array(serializableConfig.description));
+                                }
+                                serializableConfig.streamSettings = { width, height, framerate, bitrate };
+                                message.config = serializableConfig;
                             }
-                            serializableConfig.streamSettings = { width, height, framerate, bitrate };
-                            message.config = serializableConfig;
+                            await streamrClient.publish(VIDEO_STREAM_ID, message);
+                        },
+                        error: e => console.error(`VideoEncoder Error: ${e.message}`)
+                    });
+                    const vConfig = { codec: 'avc1.64002A', width, height, bitrate, framerate, hardwareAcceleration: 'prefer-hardware' };
+                    await videoEncoder.configure(vConfig);
+
+                    const videoTrack = localStream.getVideoTracks()[0];
+                    const videoProcessor = new MediaStreamTrackProcessor({ track: videoTrack });
+                    const videoFrameReader = videoProcessor.readable.getReader();
+                    
+                    const readVideoFrames = async () => {
+                        while (isBroadcasting) {
+                            const { value: frame, done } = await videoFrameReader.read().catch(() => ({ done: true }));
+                            if (done || !isBroadcasting) break;
+                            const forceKeyFrame = (Date.now() - lastKeyFrameTimestamp) > KEY_FRAME_INTERVAL_MS;
+                            if(forceKeyFrame) lastKeyFrameTimestamp = Date.now();
+                            if(videoEncoder.state === 'configured') videoEncoder.encode(frame, { keyFrame: forceKeyFrame });
+                            frame.close();
                         }
-                        await streamrClient.publish(VIDEO_STREAM_ID, message);
-                    },
-                    error: e => console.error(`VideoEncoder Error: ${e.message}`)
-                });
-                const vConfig = { codec: 'avc1.64002A', width, height, bitrate, framerate, hardwareAcceleration: 'prefer-hardware' };
-                await videoEncoder.configure(vConfig);
+                    };
+                    readVideoFrames();
+                }
 
-                const audioTrack = localStream.getAudioTracks()[0];
-                const audioProcessor = new MediaStreamTrackProcessor({ track: audioTrack });
-                const audioFrameReader = audioProcessor.readable.getReader();
+                // Audio Encoding
+                if (localStream.getAudioTracks().length > 0) {
+                     audioEncoder = new AudioEncoder({
+                        output: async (chunk) => {
+                            if (!isBroadcasting) return;
+                             const chunkData = new Uint8Array(chunk.byteLength);
+                             chunk.copyTo(chunkData);
+                             const message = {
+                                timestamp: chunk.timestamp, 
+                                duration: chunk.duration,
+                                data_base64: arrayBufferToBase64(chunkData.buffer)
+                            };
+                            await streamrClient.publish(AUDIO_STREAM_ID, message);
+                        },
+                        error: e => console.error(`AudioEncoder Error: ${e.message}`)
+                    });
+                    const aConfig = { codec: 'opus', sampleRate: 48000, numberOfChannels: 1, bitrate: 64000 };
+                    await audioEncoder.configure(aConfig);
 
-                audioEncoder = new AudioEncoder({
-                    output: async (chunk) => {
-                         if (!isBroadcasting) return;
-                        const chunkData = new Uint8Array(chunk.byteLength);
-                        chunk.copyTo(chunkData);
-                        const message = {
-                            timestamp: chunk.timestamp, duration: chunk.duration,
-                            data: Array.from(chunkData)
-                        };
-                        await streamrClient.publish(AUDIO_STREAM_ID, message);
-                    },
-                    error: e => console.error(`AudioEncoder Error: ${e.message}`)
-                });
-                const aConfig = { codec: 'opus', sampleRate: 48000, numberOfChannels: 1, bitrate: 64000 };
-                await audioEncoder.configure(aConfig);
+                    const audioTrack = localStream.getAudioTracks()[0];
+                    const audioProcessor = new MediaStreamTrackProcessor({ track: audioTrack });
+                    const audioFrameReader = audioProcessor.readable.getReader();
 
-                const readVideoFrames = async () => {
-                    while (isBroadcasting) {
-                        const { value: frame, done } = await videoFrameReader.read().catch(() => ({ done: true }));
-                        if (done) break;
-                        const forceKeyFrame = (Date.now() - lastKeyFrameTimestamp) > KEY_FRAME_INTERVAL_MS;
-                        if(forceKeyFrame) lastKeyFrameTimestamp = Date.now();
-                        if (videoEncoder.state === 'configured') videoEncoder.encode(frame, { keyFrame: forceKeyFrame });
-                        frame.close();
-                    }
-                };
-                const readAudioFrames = async () => {
-                    while (isBroadcasting) {
-                        const { value: frame, done } = await audioFrameReader.read().catch(() => ({ done: true }));
-                        if (done) break;
-                        if (audioEncoder.state === 'configured') audioEncoder.encode(frame);
-                        frame.close();
-                    }
-                };
-                readVideoFrames();
-                readAudioFrames();
+                    const readAudioFrames = async () => {
+                        while (isBroadcasting) {
+                            const { value: frame, done } = await audioFrameReader.read().catch(() => ({ done: true }));
+                            if (done || !isBroadcasting) break;
+                            if(audioEncoder.state === 'configured') audioEncoder.encode(frame);
+                            frame.close();
+                        }
+                    };
+                    readAudioFrames();
+                }
 
             } catch (error) {
                 console.error(`Broadcast start error: ${error.message}`);
@@ -478,8 +543,8 @@
             isBroadcasting = false;
             stopBroadcasterPresence();
             if(localStream) localStream.getTracks().forEach(track => track.stop());
-            if(videoEncoder?.state !== 'closed') videoEncoder.close();
-            if(audioEncoder?.state !== 'closed') audioEncoder.close();
+            if (videoEncoder && videoEncoder.state !== 'closed') videoEncoder.close();
+            if (audioEncoder && audioEncoder.state !== 'closed') audioEncoder.close();
             localVideo.srcObject = null;
         }
 
@@ -495,7 +560,7 @@
         }
         
         async function joinStream() {
-            if (!('VideoDecoder' in window && 'AudioDecoder' in window)) {
+            if (!window.VideoDecoder || !window.AudioDecoder) {
                 alert('Error: WebCodecs API not supported on this browser.');
                 return;
             }
@@ -525,7 +590,7 @@
 
             audioDecoder = new AudioDecoder({
                 output: (audioData) => {
-                    try {
+                     try {
                         const buffer = audioContext.createBuffer(audioData.numberOfChannels, audioData.numberOfFrames, audioData.sampleRate);
                         for (let i = 0; i < audioData.numberOfChannels; i++) {
                             const channelData = new Float32Array(audioData.numberOfFrames);
@@ -536,16 +601,14 @@
                         source.buffer = buffer;
                         source.connect(gainNode);
                         source.start();
-                    } catch (e) {
-                         console.error("Error playing audio data:", e);
-                    }
+                    } catch (err) { console.error("Error playing audio data:", err); }
                 },
                 error: e => console.error(`AudioDecoder Error: ${e.message}`)
             });
 
             const handleMessage = () => {
                 lastChunkReceivedTimestamp = Date.now();
-                if (statusDot.classList.contains('dot-yellow-flashing')) {
+                if (statusDot.classList.contains('dot-yellow-flashing') || statusDot.classList.contains('dot-yellow')) {
                      statusDot.className = 'status-dot dot-green';
                      statusDot.title = 'Connected';
                      watchStatus.textContent = detailedWatchStatus;
@@ -555,12 +618,12 @@
             videoSubscription = await streamrClient.subscribe(VIDEO_STREAM_ID, (message) => {
                 if (!isViewing) return;
                 handleMessage();
-                const chunk = new EncodedVideoChunk({
-                    type: message.chunk_type, timestamp: message.timestamp, duration: message.duration,
-                    data: new Uint8Array(message.data).buffer
-                });
+
                 if (message.config && videoDecoder.state === 'unconfigured') {
                     const config = message.config;
+                    if (config.description) config.description = new Uint8Array(config.description).buffer;
+                    videoDecoder.configure(config);
+
                     remoteCanvas.width = config.codedWidth;
                     remoteCanvas.height = config.codedHeight;
                     
@@ -571,25 +634,31 @@
                         detailedWatchStatus = `Receiving: ${config.codedWidth}x${config.codedHeight}`;
                     }
                     watchStatus.textContent = detailedWatchStatus;
-
-                    if (config.description) config.description = new Uint8Array(config.description).buffer;
-                    videoDecoder.configure(config);
-                    
-                    statusDot.className = 'status-dot dot-green';
-                    statusDot.title = 'Connected';
                 }
+                
+                const chunk = new EncodedVideoChunk({
+                    type: message.type,
+                    timestamp: message.timestamp,
+                    duration: message.duration,
+                    data: base64ToArrayBuffer(message.data_base64)
+                });
+
                 if (videoDecoder.state === 'configured') videoDecoder.decode(chunk);
             });
 
             audioSubscription = await streamrClient.subscribe(AUDIO_STREAM_ID, (message) => {
                 if (!isViewing) return;
                 handleMessage();
+
                 if (audioDecoder.state === 'unconfigured') {
                      audioDecoder.configure({ codec: 'opus', sampleRate: 48000, numberOfChannels: 1 });
                 }
+                
                 const chunk = new EncodedAudioChunk({
-                    type: 'key', timestamp: message.timestamp, duration: message.duration,
-                    data: new Uint8Array(message.data).buffer
+                    type: 'key',
+                    timestamp: message.timestamp,
+                    duration: message.duration,
+                    data: base64ToArrayBuffer(message.data_base64)
                 });
                 if(audioDecoder.state === 'configured') audioDecoder.decode(chunk);
             });
@@ -611,8 +680,8 @@
             videoSubscription = null;
             audioSubscription = null;
 
-            if(videoDecoder?.state !== 'closed') videoDecoder.close();
-            if(audioDecoder?.state !== 'closed') audioDecoder.close();
+            if (videoDecoder && videoDecoder.state !== 'closed') videoDecoder.close();
+            if (audioDecoder && audioDecoder.state !== 'closed') audioDecoder.close();
             if(audioContext?.state !== 'closed') await audioContext.close();
         }
 
@@ -646,10 +715,9 @@
                 }
                 const count = viewers.size;
                 updateViewerCountUI(count);
-                // Publish count only if it changes or periodically
                 await streamrClient.publish(PRESENCE_STREAM_ID, { type: 'viewer_count_update', count });
 
-            }, 5000); // Check every 5 seconds
+            }, 5000);
         }
 
         function stopBroadcasterPresence() {
@@ -723,3 +791,4 @@
     </script>
 </body>
 </html>
+

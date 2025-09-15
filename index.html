@@ -495,7 +495,7 @@
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-                goSettingsBtn.disabled = false;
+            //    goSettingsBtn.disabled = false;
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
@@ -1022,4 +1022,5 @@
     </script>
 </body>
 </html>
+
 

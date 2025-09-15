@@ -156,6 +156,20 @@
                     </div>
                     <input id="framerateSlider" type="range" min="15" max="60" value="30" step="1" class="disabled:opacity-50">
                 </div>
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="performanceSlider" class="text-sm font-medium text-zinc-300">Performance</label>
+                        <span id="performanceValue" class="text-sm font-mono text-zinc-400">Lowest Latency</span>
+                    </div>
+                    <input id="performanceSlider" type="range" min="0" max="1" value="0" step="1" class="disabled:opacity-50">
+                </div>
+                 <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="keyframeIntervalSlider" class="text-sm font-medium text-zinc-300">Key Frame Interval</label>
+                        <span id="keyframeIntervalValue" class="text-sm font-mono text-zinc-400">2.0 s</span>
+                    </div>
+                    <input id="keyframeIntervalSlider" type="range" min="1000" max="10000" value="2000" step="500" class="disabled:opacity-50">
+                </div>
             </div>
             <div class="mt-8 flex justify-center gap-4">
                 <button id="back-to-menu-settings" class="bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Back</button>
@@ -267,6 +281,10 @@
         const bitrateValue = document.getElementById('bitrateValue');
         const framerateSlider = document.getElementById('framerateSlider');
         const framerateValue = document.getElementById('framerateValue');
+        const performanceSlider = document.getElementById('performanceSlider');
+        const performanceValue = document.getElementById('performanceValue');
+        const keyframeIntervalSlider = document.getElementById('keyframeIntervalSlider');
+        const keyframeIntervalValue = document.getElementById('keyframeIntervalValue');
         const volumeSlider = document.getElementById('volume-slider');
         
         const canvasContext = remoteCanvas.getContext('2d');
@@ -288,7 +306,6 @@
         let isBroadcasting = false;
         let isViewing = false;
         let lastKeyFrameTimestamp = 0;
-        const KEY_FRAME_INTERVAL_MS = 2000;
         let lastChunkReceivedTimestamp = 0;
         let streamHealthInterval = null;
         const STALE_STREAM_TIMEOUT_MS = 3000;
@@ -366,6 +383,9 @@
                 resolutionSlider.disabled = !hasVideo;
                 bitrateSlider.disabled = !hasVideo;
                 framerateSlider.disabled = !hasVideo;
+                performanceSlider.disabled = !hasVideo;
+                keyframeIntervalSlider.disabled = !hasVideo;
+
 
                 startBroadcastBtn.disabled = !hasVideo && !hasAudio;
                 if (!hasVideo && !hasAudio) alert("No camera or microphone found.");
@@ -386,6 +406,13 @@
         framerateSlider.addEventListener('input', (e) => {
             framerateValue.textContent = `${e.target.value} fps`;
         });
+        const performanceModes = ['Lowest Latency', 'Best Quality'];
+        performanceSlider.addEventListener('input', (e) => {
+            performanceValue.textContent = performanceModes[e.target.value];
+        });
+        keyframeIntervalSlider.addEventListener('input', (e) => {
+            keyframeIntervalValue.textContent = `${(e.target.value / 1000).toFixed(1)} s`;
+        });
         volumeSlider.addEventListener('input', (e) => {
             if (gainNode) {
                 gainNode.gain.setValueAtTime(e.target.value / 100, audioContext.currentTime);
@@ -400,7 +427,7 @@
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-              ///  goSettingsBtn.disabled = false;
+           //     goSettingsBtn.disabled = false;
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
@@ -421,23 +448,43 @@
                 alert("No devices to broadcast.");
                 return;
             }
-
-            showPage('broadcast');
-            isBroadcasting = true;
-            startBroadcasterPresence();
-
+            
             const resolution = resolutions[resolutionSlider.value].value;
             const [width, height] = resolution.split('x').map(Number);
             const bitrate = parseInt(bitrateSlider.value, 10);
             const framerate = parseInt(framerateSlider.value, 10);
+            const performanceMode = (performanceSlider.value === '0') ? 'realtime' : 'quality';
+            const keyFrameIntervalMs = parseInt(keyframeIntervalSlider.value, 10);
             const videoDeviceId = videoSourceSelect.value;
             const audioDeviceId = audioSourceSelect.value;
+            const codec = 'avc1.64002A';
             
             const constraints = {};
             if(hasVideo) constraints.video = { deviceId: { exact: videoDeviceId }, width, height, frameRate: { ideal: framerate, max: framerate } };
             if(hasAudio) constraints.audio = { deviceId: { exact: audioDeviceId }, echoCancellation: true, noiseSuppression: true };
-
+            
             try {
+                 if (hasVideo) {
+                    const vConfig = { 
+                        codec: codec, 
+                        width, 
+                        height, 
+                        bitrate, 
+                        framerate, 
+                        hardwareAcceleration: 'prefer-hardware',
+                        latencyMode: performanceMode 
+                    };
+                    const support = await VideoEncoder.isConfigSupported(vConfig);
+                    if (!support.supported) {
+                        alert(`The current video settings are not supported by your browser.`);
+                        return;
+                    }
+                }
+                
+                showPage('broadcast');
+                isBroadcasting = true;
+                startBroadcasterPresence();
+
                 let statusText = 'Broadcasting ';
                 if(hasVideo) statusText += `Video(${width}x${height}@${framerate}fps, ~${(bitrate / 1000000).toFixed(1)}Mbps)`;
                 if(hasVideo && hasAudio) statusText += " & ";
@@ -446,11 +493,20 @@
 
                 localStream = await navigator.mediaDevices.getUserMedia(constraints);
                 
-                if (hasVideo) localVideo.srcObject = localStream;
-                
                 // Video Encoding
-                if (localStream.getVideoTracks().length > 0) {
+                if (hasVideo && localStream.getVideoTracks().length > 0) {
+                    localVideo.srcObject = localStream;
                     let lastSentVideoConfig = null;
+                     const vConfig = { 
+                        codec: codec, 
+                        width, 
+                        height, 
+                        bitrate, 
+                        framerate, 
+                        hardwareAcceleration: 'prefer-hardware',
+                        latencyMode: performanceMode 
+                    };
+                   
                     videoEncoder = new VideoEncoder({
                         output: async (chunk, metadata) => {
                             if (metadata.decoderConfig) lastSentVideoConfig = metadata.decoderConfig;
@@ -478,7 +534,7 @@
                         },
                         error: e => console.error(`VideoEncoder Error: ${e.message}`)
                     });
-                    const vConfig = { codec: 'avc1.64002A', width, height, bitrate, framerate, hardwareAcceleration: 'prefer-hardware' };
+                   
                     await videoEncoder.configure(vConfig);
 
                     const videoTrack = localStream.getVideoTracks()[0];
@@ -489,7 +545,7 @@
                         while (isBroadcasting) {
                             const { value: frame, done } = await videoFrameReader.read().catch(() => ({ done: true }));
                             if (done || !isBroadcasting) break;
-                            const forceKeyFrame = (Date.now() - lastKeyFrameTimestamp) > KEY_FRAME_INTERVAL_MS;
+                            const forceKeyFrame = (Date.now() - lastKeyFrameTimestamp) > keyFrameIntervalMs;
                             if(forceKeyFrame) lastKeyFrameTimestamp = Date.now();
                             if(videoEncoder.state === 'configured') videoEncoder.encode(frame, { keyFrame: forceKeyFrame });
                             frame.close();
@@ -499,7 +555,7 @@
                 }
 
                 // Audio Encoding
-                if (localStream.getAudioTracks().length > 0) {
+                if (hasAudio && localStream.getAudioTracks().length > 0) {
                      audioEncoder = new AudioEncoder({
                         output: async (chunk) => {
                             if (!isBroadcasting) return;

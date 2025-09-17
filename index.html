@@ -473,7 +473,7 @@
                 });
                 videoSourceSelect.disabled = !hasVideo; audioSourceSelect.disabled = !hasAudio;
                 audioQualitySlider.disabled = !hasAudio;
-                startBroadcastBtn.disabled = true;
+                startBroadcastBtn.disabled = !hasVideo;
                 if (!hasVideo) alert("No camera found. Please connect a camera to broadcast.");
             } catch (err) {
                 alert(`Error getting media devices: ${err.message}. Please check permissions.`);
@@ -544,7 +544,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 menuStatus.textContent = 'Connecting to the P2P network...';
-                streamrClient = new StreamrClient();
+          //      streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
                 goSettingsBtn.disabled = false; goWatchBtn.disabled = false;
@@ -887,4 +887,5 @@
     </script>
 </body>
 </html>
+
 

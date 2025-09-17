@@ -9,11 +9,11 @@
     <!-- Streamr Client SDK (Latest Version) -->
     <script src="https://unpkg.com/@streamr/sdk@latest/dist/streamr-sdk.web.js"></script>
     <style>
-        /* UI styles from the provided file */
+        /* UI styles */
         body { 
             font-family: 'Inter', sans-serif; 
         }
-        #localVideo { 
+        #localVideo.camera-view { 
             transform: scaleX(-1); 
             -webkit-transform: scaleX(-1); 
         }
@@ -28,7 +28,6 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
         .status-dot {
             height: 10px; 
             width: 10px; 
@@ -39,50 +38,69 @@
         .dot-red { background-color: #f87171; box-shadow: 0 0 5px #f87171; }
         .dot-yellow { background-color: #facc15; box-shadow: 0 0 5px #facc15; }
         .dot-yellow-flashing { animation: pulse-yellow 1.5s infinite; }
-
         @keyframes pulse-yellow {
             0% { background-color: #facc15; box-shadow: 0 0 5px #facc15; }
             50% { background-color: #a16207; box-shadow: none; }
             100% { background-color: #facc15; box-shadow: 0 0 5px #facc15; }
         }
 
+        /* Range slider styles */
         input[type="range"] {
-            -webkit-appearance: none;
-            appearance: none;
-            background: transparent;
-            cursor: pointer;
-            width: 100%;
+            -webkit-appearance: none; appearance: none;
+            background: transparent; cursor: pointer; width: 100%;
         }
         input[type="range"]::-webkit-slider-runnable-track {
-            background: #3f3f46;
-            height: 0.25rem;
-            border-radius: 0.5rem;
+            background: #3f3f46; height: 0.25rem; border-radius: 0.5rem;
         }
         input[type="range"]::-moz-range-track {
-            background: #3f3f46;
-            height: 0.25rem;
-            border-radius: 0.5rem;
+            background: #3f3f46; height: 0.25rem; border-radius: 0.5rem;
         }
         input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            margin-top: -6px;
-            background-color: #a1a1aa;
-            height: 1rem;
-            width: 1rem;
-            border-radius: 9999px;
-            transition: background-color 0.2s;
+            -webkit-appearance: none; appearance: none;
+            margin-top: -6px; background-color: #a1a1aa; height: 1rem;
+            width: 1rem; border-radius: 9999px; transition: background-color 0.2s;
         }
         input[type="range"]::-moz-range-thumb {
-            border: none;
-            border-radius: 9999px;
-            background-color: #a1a1aa;
-            height: 1rem;
-            width: 1rem;
-            transition: background-color 0.2s;
+            border: none; border-radius: 9999px; background-color: #a1a1aa;
+            height: 1rem; width: 1rem; transition: background-color 0.2s;
         }
         input[type="range"]:hover::-webkit-slider-thumb { background-color: #d4d4d8; }
         input[type="range"]:hover::-moz-range-thumb { background-color: #d4d4d8; }
+
+        /* Tooltip styles */
+        .tooltip-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        .tooltip-icon {
+            margin-left: 8px;
+            cursor: help;
+        }
+        .tooltip-text {
+            visibility: hidden; width: 220px; background-color: #27272a; color: #d4d4d8;
+            text-align: center; border-radius: 6px; padding: 8px; position: absolute;
+            z-index: 10; bottom: 125%; left: 50%; margin-left: -110px; opacity: 0;
+            transition: opacity 0.3s; font-size: 0.8rem; font-weight: normal;
+            border: 1px solid #3f3f46;
+        }
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Styling for <details> accordion */
+        #advanced-settings-group summary {
+            list-style: none; /* Remove default marker */
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+        }
+        #advanced-settings-group summary::-webkit-details-marker { display: none; }
+        #advanced-settings-group .summary-arrow { transition: transform 0.2s; }
+        #advanced-settings-group[open] .summary-arrow { transform: rotate(90deg); }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -126,50 +144,107 @@
                 <h1 class="text-3xl font-bold text-white">Broadcast Settings</h1>
                 <p class="text-zinc-400 mt-1">Fine-tune your stream for the best performance.</p>
             </div>
-            <div class="bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8 space-y-6 text-left max-w-md mx-auto">
-                <div>
-                    <label for="videoSourceSelect" class="block mb-2 text-sm font-medium text-zinc-300">Camera</label>
-                    <select id="videoSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5 disabled:opacity-50" disabled></select>
-                </div>
-                <div>
-                    <label for="audioSourceSelect" class="block mb-2 text-sm font-medium text-zinc-300">Microphone</label>
-                    <select id="audioSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5 disabled:opacity-50" disabled></select>
-                </div>
-                <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <label for="resolutionSlider" class="text-sm font-medium text-zinc-300">Resolution</label>
-                        <span id="resolutionValue" class="text-sm font-mono text-zinc-400">720p</span>
+            <div class="bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8 space-y-4 divide-y divide-zinc-700/50 text-left max-w-md mx-auto">
+                
+                <div class="pt-2">
+                    <h3 class="text-sm font-medium text-zinc-300 mb-2">Source</h3>
+                    <div class="grid grid-cols-3 gap-2 rounded-lg bg-zinc-700 p-1">
+                        <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors bg-zinc-600 text-white" for="source-camera">Camera</label>
+                        <input type="radio" name="broadcast-source" id="source-camera" value="camera" class="sr-only" checked>
+                        
+                        <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors hover:bg-zinc-600/50" for="source-screen">Screen</label>
+                        <input type="radio" name="broadcast-source" id="source-screen" value="screen" class="sr-only">
+
+                        <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors hover:bg-zinc-600/50" for="source-tab">Browser Tab</label>
+                        <input type="radio" name="broadcast-source" id="source-tab" value="tab" class="sr-only">
                     </div>
-                    <input id="resolutionSlider" type="range" min="0" max="2" value="1" step="1" class="disabled:opacity-50">
                 </div>
-                <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <label for="bitrateSlider" class="text-sm font-medium text-zinc-300">Bitrate</label>
-                        <span id="bitrateValue" class="text-sm font-mono text-zinc-400">2.0 Mbps</span>
+
+                <div id="input-devices-group" class="pt-4 space-y-4">
+                    <h3 class="text-sm font-medium text-zinc-300">Input Devices</h3>
+                    <div>
+                        <label for="videoSourceSelect" class="block mb-2 text-sm font-medium text-zinc-400">Camera</label>
+                        <select id="videoSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5 disabled:opacity-50" disabled></select>
                     </div>
-                    <input id="bitrateSlider" type="range" min="500000" max="5000000" value="2000000" step="100000" class="disabled:opacity-50">
-                </div>
-                <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <label for="framerateSlider" class="text-sm font-medium text-zinc-300">Frame Rate</label>
-                        <span id="framerateValue" class="text-sm font-mono text-zinc-400">30 fps</span>
+                    <div>
+                        <label for="audioSourceSelect" class="block mb-2 text-sm font-medium text-zinc-400">Microphone</label>
+                        <select id="audioSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5 disabled:opacity-50" disabled></select>
                     </div>
-                    <input id="framerateSlider" type="range" min="15" max="60" value="30" step="1" class="disabled:opacity-50">
                 </div>
-                <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <label for="performanceSlider" class="text-sm font-medium text-zinc-300">Performance</label>
-                        <span id="performanceValue" class="text-sm font-mono text-zinc-400">Lowest Latency</span>
+                
+                <div id="video-quality-group" class="pt-4 space-y-4">
+                    <h3 class="text-sm font-medium text-zinc-300">Video Quality</h3>
+                    <div id="resolution-setting">
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="resolutionSlider" class="text-sm font-medium text-zinc-400">Resolution</label>
+                            <span id="resolutionValue" class="text-sm font-mono text-zinc-400">720p</span>
+                        </div>
+                        <input id="resolutionSlider" type="range" min="0" max="2" value="1" step="1" class="disabled:opacity-50">
                     </div>
-                    <input id="performanceSlider" type="range" min="0" max="1" value="0" step="1" class="disabled:opacity-50">
-                </div>
-                 <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <label for="keyframeIntervalSlider" class="text-sm font-medium text-zinc-300">Key Frame Interval</label>
-                        <span id="keyframeIntervalValue" class="text-sm font-mono text-zinc-400">2.0 s</span>
+                     <div id="framerate-setting">
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="framerateSlider" class="text-sm font-medium text-zinc-400">Frame Rate</label>
+                            <span id="framerateValue" class="text-sm font-mono text-zinc-400">30 fps</span>
+                        </div>
+                        <input id="framerateSlider" type="range" min="15" max="60" value="30" step="1" class="disabled:opacity-50">
                     </div>
-                    <input id="keyframeIntervalSlider" type="range" min="1000" max="10000" value="2000" step="500" class="disabled:opacity-50">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="bitrateSlider" class="text-sm font-medium text-zinc-400">Video Bitrate</label>
+                            <span id="bitrateValue" class="text-sm font-mono text-zinc-400">2.0 Mbps</span>
+                        </div>
+                        <input id="bitrateSlider" type="range" min="500000" max="5000000" value="2000000" step="100000" class="disabled:opacity-50">
+                    </div>
                 </div>
+
+                <div id="audio-quality-group" class="pt-4 space-y-4">
+                     <h3 class="text-sm font-medium text-zinc-300">Audio Quality</h3>
+                     <div>
+                        <div class="flex justify-between items-center mb-2">
+                             <label for="audioQualitySlider" class="text-sm font-medium text-zinc-400">Quality</label>
+                             <span id="audioQualityValue" class="text-sm font-mono text-zinc-400">Balanced</span>
+                        </div>
+                        <input id="audioQualitySlider" type="range" min="0" max="2" value="1" step="1" class="disabled:opacity-50">
+                    </div>
+                </div>
+                
+                <details id="advanced-settings-group" class="pt-2">
+                    <summary class="text-sm font-medium text-zinc-300">
+                        <span>Advanced Settings</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 summary-arrow text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </summary>
+                    <div class="space-y-4 pt-4">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <div class="tooltip-container">
+                                    <label for="performanceSlider" class="text-sm font-medium text-zinc-400">Performance</label>
+                                    <div class="tooltip-icon">
+                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                                    </div>
+                                    <span class="tooltip-text">'Lowest Latency' is faster for real-time interaction. 'Best Quality' prioritizes a clearer image, which might add a small delay.</span>
+                                </div>
+                                <span id="performanceValue" class="text-sm font-mono text-zinc-400">Lowest Latency</span>
+                            </div>
+                            <input id="performanceSlider" type="range" min="0" max="1" value="0" step="1" class="disabled:opacity-50">
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <div class="tooltip-container">
+                                    <label for="keyframeIntervalSlider" class="text-sm font-medium text-zinc-400">Key Frame Interval</label>
+                                     <div class="tooltip-icon">
+                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                                    </div>
+                                    <span class="tooltip-text">How often a full video frame is sent. Shorter intervals can improve stream recovery on unstable connections but use more data.</span>
+                                </div>
+                                <span id="keyframeIntervalValue" class="text-sm font-mono text-zinc-400">2.0 s</span>
+                            </div>
+                            <input id="keyframeIntervalSlider" type="range" min="1000" max="10000" value="2000" step="500" class="disabled:opacity-50">
+                        </div>
+                    </div>
+                </details>
+
             </div>
             <div class="mt-8 flex justify-center gap-4">
                 <button id="back-to-menu-settings" class="bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Back</button>
@@ -190,7 +265,7 @@
                 </div>
             </div>
             <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
-                <video id="localVideo" autoplay playsinline muted class="w-full h-auto bg-black rounded-md"></video>
+                <video id="localVideo" autoplay playsinline muted class="w-full h-auto bg-black rounded-md camera-view"></video>
             </div>
             <button id="back-to-menu-broadcast" class="mt-8 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Stop and Go Back</button>
         </div>
@@ -302,33 +377,39 @@
         const viewerCountWatcher = document.getElementById('viewer-count-watcher');
         const viewerCountWatcherValue = document.getElementById('viewer-count-watcher-value');
 
+        // Settings page elements
+        const broadcastSourceRadios = document.querySelectorAll('input[name="broadcast-source"]');
+        const inputDevicesGroup = document.getElementById('input-devices-group');
+        const videoQualityGroup = document.getElementById('video-quality-group');
         const videoSourceSelect = document.getElementById('videoSourceSelect');
         const audioSourceSelect = document.getElementById('audioSourceSelect');
         const resolutionSlider = document.getElementById('resolutionSlider');
         const resolutionValue = document.getElementById('resolutionValue');
+        const resolutionSetting = document.getElementById('resolution-setting');
+        const framerateSetting = document.getElementById('framerate-setting');
         const bitrateSlider = document.getElementById('bitrateSlider');
         const bitrateValue = document.getElementById('bitrateValue');
         const framerateSlider = document.getElementById('framerateSlider');
         const framerateValue = document.getElementById('framerateValue');
+        const audioQualitySlider = document.getElementById('audioQualitySlider');
+        const audioQualityValue = document.getElementById('audioQualityValue');
         const performanceSlider = document.getElementById('performanceSlider');
         const performanceValue = document.getElementById('performanceValue');
         const keyframeIntervalSlider = document.getElementById('keyframeIntervalSlider');
         const keyframeIntervalValue = document.getElementById('keyframeIntervalValue');
+        
+        // Watch page elements
         const volumeSlider = document.getElementById('volume-slider');
         const bufferSlider = document.getElementById('bufferSlider');
         const bufferValue = document.getElementById('bufferValue');
         const liveModeCheckbox = document.getElementById('liveModeCheckbox');
         const latencyControls = document.getElementById('latency-controls');
-
         
         const canvasContext = remoteCanvas.getContext('2d');
 
         // --- Constants and Mappings ---
-        const resolutions = [
-            { text: '480p', value: '640x480' },
-            { text: '720p', value: '1280x720' },
-            { text: '1080p', value: '1920x1080' }
-        ];
+        const resolutions = [ { text: '480p', value: '640x480' }, { text: '720p', value: '1280x720' }, { text: '1080p', value: '1920x1080' }];
+        const audioQualities = [ { text: 'Voice', bitrate: 32000 }, { text: 'Balanced', bitrate: 64000 }, { text: 'High Fidelity', bitrate: 128000 }];
 
         // --- State Variables ---
         let streamrClient;
@@ -337,53 +418,36 @@
         let localStream;
         let audioContext, gainNode;
         let videoSubscription, audioSubscription, presenceSubscription;
-        let isBroadcasting = false;
-        let isViewing = false;
-        let lastKeyFrameTimestamp = 0;
-        let lastChunkReceivedTimestamp = 0;
-        let streamHealthInterval = null;
+        let isBroadcasting = false, isViewing = false;
+        let lastKeyFrameTimestamp = 0, lastChunkReceivedTimestamp = 0, streamHealthInterval = null;
         const STALE_STREAM_TIMEOUT_MS = 3000;
+        let broadcastSourceType = 'camera';
 
         // Presence state
-        let currentUserId = null;
-        let viewers = new Map();
-        let presenceHeartbeatInterval = null;
-        let broadcasterPresenceInterval = null;
+        let currentUserId = null, viewers = new Map();
+        let presenceHeartbeatInterval = null, broadcasterPresenceInterval = null;
         const VIEWER_TIMEOUT_MS = 15000; // 15 seconds
         const HEARTBEAT_INTERVAL_MS = 10000; // 10 seconds
 
         // Viewer state
         let detailedWatchStatus = 'Looking for a broadcast...';
-        let videoBuffer = [];
-        let audioBuffer = [];
-        let isPlaying = false;
-        let isManuallyPaused = false;
-        let playbackStartTime = 0;
-        let mediaStartTime = 0;
-        let bufferTargetMs = 200;
-        let renderLoopId = null;
-        let isLiveMode = true;
+        let videoBuffer = [], audioBuffer = [];
+        let isPlaying = false, isManuallyPaused = false;
+        let playbackStartTime = 0, mediaStartTime = 0;
+        let bufferTargetMs = 200, renderLoopId = null, isLiveMode = true, nextAudioScheduleTime = 0;
+        let lastRenderedFrame = null;
 
         // --- Helper Functions ---
         function arrayBufferToBase64(buffer) {
-            let binary = '';
-            const bytes = new Uint8Array(buffer);
-            for (let i = 0; i < bytes.byteLength; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
+            let binary = '', bytes = new Uint8Array(buffer);
+            for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
             return window.btoa(binary);
         }
-
         function base64ToArrayBuffer(base64) {
-            const binary_string = window.atob(base64);
-            const len = binary_string.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-                bytes[i] = binary_string.charCodeAt(i);
-            }
+            const binary_string = window.atob(base64), len = binary_string.length, bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) { bytes[i] = binary_string.charCodeAt(i); }
             return bytes.buffer;
         }
-
         function showPage(pageName) {
             Object.values(pages).forEach(p => p.classList.remove('active'));
             if(pages[pageName]) pages[pageName].classList.add('active');
@@ -391,112 +455,99 @@
 
         async function populateDeviceLists() {
             try {
+                await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                
-                videoSourceSelect.innerHTML = '';
-                audioSourceSelect.innerHTML = '';
-
-                let hasVideo = false;
-                let hasAudio = false;
-
+                videoSourceSelect.innerHTML = ''; audioSourceSelect.innerHTML = '';
+                let hasVideo = false, hasAudio = false;
                 devices.forEach(device => {
+                    if (!device.label) return;
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     if (device.kind === 'videoinput') {
                         option.text = device.label || `Camera ${videoSourceSelect.length + 1}`;
-                        videoSourceSelect.appendChild(option);
-                        hasVideo = true;
+                        videoSourceSelect.appendChild(option); hasVideo = true;
                     } else if (device.kind === 'audioinput') {
                         option.text = device.label || `Microphone ${audioSourceSelect.length + 1}`;
-                        audioSourceSelect.appendChild(option);
-                        hasAudio = true;
+                        audioSourceSelect.appendChild(option); hasAudio = true;
                     }
                 });
-                
-                if (hasVideo && videoSourceSelect.options[0].text.startsWith('Camera')) {
-                    const tempStream = await navigator.mediaDevices.getUserMedia({ audio: hasAudio, video: hasVideo });
-                    tempStream.getTracks().forEach(track => track.stop());
-                    await populateDeviceLists(); // Recurse to get labels
-                    return;
-                }
-
-                videoSourceSelect.disabled = !hasVideo;
-                audioSourceSelect.disabled = !hasAudio;
-                resolutionSlider.disabled = !hasVideo;
-                bitrateSlider.disabled = !hasVideo;
-                framerateSlider.disabled = !hasVideo;
-                performanceSlider.disabled = !hasVideo;
-                keyframeIntervalSlider.disabled = !hasVideo;
-
-
-                startBroadcastBtn.disabled = !hasVideo && !hasAudio;
-                if (!hasVideo && !hasAudio) alert("No camera or microphone found.");
-
+                videoSourceSelect.disabled = !hasVideo; audioSourceSelect.disabled = !hasAudio;
+                audioQualitySlider.disabled = !hasAudio;
+                startBroadcastBtn.disabled = !hasVideo;
+                if (!hasVideo) alert("No camera found. Please connect a camera to broadcast.");
             } catch (err) {
                 alert(`Error getting media devices: ${err.message}. Please check permissions.`);
                 showPage('menu');
             }
         }
         
-        // --- Event Listeners for Sliders ---
-        resolutionSlider.addEventListener('input', (e) => {
-            resolutionValue.textContent = resolutions[e.target.value].text;
-        });
-        bitrateSlider.addEventListener('input', (e) => {
-            bitrateValue.textContent = `${(e.target.value / 1000000).toFixed(1)} Mbps`;
-        });
-        framerateSlider.addEventListener('input', (e) => {
-            framerateValue.textContent = `${e.target.value} fps`;
-        });
+        // --- Event Listeners for Settings ---
+        resolutionSlider.addEventListener('input', e => { resolutionValue.textContent = resolutions[e.target.value].text; });
+        bitrateSlider.addEventListener('input', e => { bitrateValue.textContent = `${(e.target.value / 1000000).toFixed(1)} Mbps`; });
+        framerateSlider.addEventListener('input', e => { framerateValue.textContent = `${e.target.value} fps`; });
+        audioQualitySlider.addEventListener('input', e => { audioQualityValue.textContent = audioQualities[e.target.value].text; });
         const performanceModes = ['Lowest Latency', 'Best Quality'];
-        performanceSlider.addEventListener('input', (e) => {
-            performanceValue.textContent = performanceModes[e.target.value];
+        performanceSlider.addEventListener('input', e => { performanceValue.textContent = performanceModes[e.target.value]; });
+        keyframeIntervalSlider.addEventListener('input', e => { keyframeIntervalValue.textContent = `${(e.target.value / 1000).toFixed(1)} s`; });
+        
+        broadcastSourceRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                broadcastSourceType = e.target.value;
+                document.querySelectorAll('label[for^="source-"]').forEach(label => {
+                    label.classList.remove('bg-zinc-600', 'text-white');
+                    label.classList.add('hover:bg-zinc-600/50');
+                });
+                const selectedLabel = document.querySelector(`label[for="${e.target.id}"]`);
+                selectedLabel.classList.add('bg-zinc-600', 'text-white');
+                selectedLabel.classList.remove('hover:bg-zinc-600/50');
+
+                const isCamera = broadcastSourceType === 'camera';
+                inputDevicesGroup.style.display = isCamera ? 'block' : 'none';
+                resolutionSetting.style.display = isCamera ? 'block' : 'none';
+                framerateSetting.style.display = isCamera ? 'block' : 'none';
+                
+                if (isCamera) {
+                    populateDeviceLists();
+                    startBroadcastBtn.disabled = videoSourceSelect.options.length === 0;
+                } else {
+                    startBroadcastBtn.disabled = false;
+                }
+            });
         });
-        keyframeIntervalSlider.addEventListener('input', (e) => {
-            keyframeIntervalValue.textContent = `${(e.target.value / 1000).toFixed(1)} s`;
-        });
-        volumeSlider.addEventListener('input', (e) => {
-            if (gainNode) {
-                gainNode.gain.setValueAtTime(e.target.value / 100, audioContext.currentTime);
-            }
-        });
-        bufferSlider.addEventListener('input', (e) => {
+
+        // --- Event Listeners for Watch Page ---
+        volumeSlider.addEventListener('input', e => { if (gainNode) gainNode.gain.setValueAtTime(e.target.value / 100, audioContext.currentTime); });
+        bufferSlider.addEventListener('input', e => {
             bufferTargetMs = parseInt(e.target.value, 10);
             bufferValue.textContent = `${bufferTargetMs} ms`;
-             if (isPlaying) {
-                const videoDuration = (videoBuffer.length > 1) ? (videoBuffer[videoBuffer.length - 1].timestamp - videoBuffer[0].timestamp) / 1000 : 0;
-                if (bufferTargetMs > videoDuration) {
+            if (isPlaying) {
+                const vDur = (videoBuffer.length > 1) ? (videoBuffer[videoBuffer.length - 1].timestamp - videoBuffer[0].timestamp) / 1000 : 0;
+                if (bufferTargetMs > vDur) {
                     isPlaying = false;
                     watchStatus.textContent = "Buffering...";
                     statusDot.className = 'status-dot dot-yellow-flashing';
                 }
             }
         });
-
-        liveModeCheckbox.addEventListener('change', (e) => {
+        liveModeCheckbox.addEventListener('change', e => {
             isLiveMode = e.target.checked;
             latencyControls.classList.toggle('hidden', isLiveMode);
-            videoBuffer = [];
-            audioBuffer = [];
-            isPlaying = false;
-            isManuallyPaused = false;
+            videoBuffer.forEach(f => f.close()); videoBuffer = [];
+            audioBuffer.forEach(c => c.close()); audioBuffer = [];
+            isPlaying = false; isManuallyPaused = false;
             updatePlayPauseButton();
             watchStatus.textContent = detailedWatchStatus;
-            if (!isLiveMode) {
-                watchStatus.textContent = 'Buffering...';
-            }
+            if (!isLiveMode) watchStatus.textContent = 'Buffering...';
         });
-
 
         // --- Core Logic ---
         document.addEventListener('DOMContentLoaded', async () => {
-            menuStatus.textContent = 'Connecting to the P2P network...';
             try {
+                menuStatus.textContent = 'Connecting to the P2P network...';
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-            //    goSettingsBtn.disabled = false;
-                goWatchBtn.disabled = false;
+            //    goSettingsBtn.disabled = false; goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
                 menuStatus.textContent = `Error connecting: ${error.message}. Please refresh.`;
@@ -505,168 +556,106 @@
 
         // --- Broadcaster ---
         async function startBroadcast() {
-            if (!window.VideoEncoder || !window.AudioEncoder) {
-                alert('Error: WebCodecs API not supported in this browser.');
-                return;
-            }
-
-            const hasVideo = videoSourceSelect.options.length > 0;
-            const hasAudio = audioSourceSelect.options.length > 0;
-            if(!hasVideo && !hasAudio) {
-                alert("No devices to broadcast.");
-                return;
-            }
-            
-            const resolution = resolutions[resolutionSlider.value].value;
-            const [width, height] = resolution.split('x').map(Number);
-            const bitrate = parseInt(bitrateSlider.value, 10);
-            const framerate = parseInt(framerateSlider.value, 10);
-            const performanceMode = (performanceSlider.value === '0') ? 'realtime' : 'quality';
-            const keyFrameIntervalMs = parseInt(keyframeIntervalSlider.value, 10);
-            const videoDeviceId = videoSourceSelect.value;
-            const audioDeviceId = audioSourceSelect.value;
-            const codec = 'avc1.64002A';
-            
-            const constraints = {};
-            if(hasVideo) constraints.video = { deviceId: { exact: videoDeviceId }, width, height, frameRate: { ideal: framerate, max: framerate } };
-            if(hasAudio) constraints.audio = { deviceId: { exact: audioDeviceId }, echoCancellation: true, noiseSuppression: true };
-            
+            if (!window.VideoEncoder || !window.AudioEncoder) return alert('Error: WebCodecs API not supported in this browser.');
             try {
-                 if (hasVideo) {
-                    const vConfig = { 
-                        codec: codec, 
-                        width, 
-                        height, 
-                        bitrate, 
-                        framerate, 
-                        hardwareAcceleration: 'prefer-hardware',
-                        latencyMode: performanceMode 
-                    };
-                    const support = await VideoEncoder.isConfigSupported(vConfig);
-                    if (!support.supported) {
-                        alert(`The current video settings are not supported by your browser.`);
-                        return;
-                    }
+                if (broadcastSourceType === 'camera') {
+                    const vDev = videoSourceSelect.value, aDev = audioSourceSelect.value;
+                    const res = resolutions[resolutionSlider.value].value;
+                    const [w, h] = res.split('x').map(Number);
+                    const fps = parseInt(framerateSlider.value, 10);
+                    const constraints = { video: { deviceId:{exact:vDev}, width:w, height:h, frameRate:{ideal:fps, max:fps} }, audio: { deviceId:{exact:aDev}, echoCancellation:true, noiseSuppression:true } };
+                    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    localVideo.classList.add('camera-view');
+                } else {
+                    localStream = await navigator.mediaDevices.getDisplayMedia({ video:{cursor:"always"}, audio:true });
+                    localVideo.classList.remove('camera-view');
+                    localStream.getVideoTracks()[0].onended = goBackToMenu;
                 }
+
+                const hasVideo = localStream.getVideoTracks().length > 0, hasAudio = localStream.getAudioTracks().length > 0;
+                if(!hasVideo && !hasAudio) return alert("Selected source has no video or audio.");
                 
                 showPage('broadcast');
                 isBroadcasting = true;
                 startBroadcasterPresence();
+                localVideo.srcObject = localStream;
+                let vSettings, statusText = `Broadcasting ${broadcastSourceType} `;
 
-                let statusText = 'Broadcasting ';
-                if(hasVideo) statusText += `Video(${width}x${height}@${framerate}fps, ~${(bitrate / 1000000).toFixed(1)}Mbps)`;
-                if(hasVideo && hasAudio) statusText += " & ";
-                if(hasAudio) statusText += 'Audio';
-                broadcastStatus.textContent = statusText;
-
-                localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                
-                if (hasVideo && localStream.getVideoTracks().length > 0) {
-                    localVideo.srcObject = localStream;
-                    let lastSentVideoConfig = null;
-                     const vConfig = { 
-                        codec: codec, 
-                        width, 
-                        height, 
-                        bitrate, 
-                        framerate, 
-                        hardwareAcceleration: 'prefer-hardware',
-                        latencyMode: performanceMode 
-                    };
-                   
-                    videoEncoder = new VideoEncoder({
-                        output: async (chunk, metadata) => {
-                            if (metadata.decoderConfig) lastSentVideoConfig = metadata.decoderConfig;
-                            if (!lastSentVideoConfig || !isBroadcasting) return;
-                            
-                            const chunkData = new Uint8Array(chunk.byteLength);
-                            chunk.copyTo(chunkData);
-
-                            const message = {
-                                type: chunk.type, 
-                                timestamp: chunk.timestamp, 
-                                duration: chunk.duration,
-                                data_base64: arrayBufferToBase64(chunkData.buffer)
-                            };
-
-                            if (chunk.type === 'key') {
-                                const serializableConfig = { ...lastSentVideoConfig };
-                                if (serializableConfig.description) {
-                                    serializableConfig.description = Array.from(new Uint8Array(serializableConfig.description));
-                                }
-                                serializableConfig.streamSettings = { width, height, framerate, bitrate };
-                                message.config = serializableConfig;
-                            }
-                            await streamrClient.publish(VIDEO_STREAM_ID, message);
-                        },
-                        error: e => console.error(`VideoEncoder Error: ${e.message}`)
-                    });
-                   
+                if(hasVideo) {
+                    const trackSettings = localStream.getVideoTracks()[0].getSettings();
+                    const bitrate = parseInt(bitrateSlider.value, 10);
+                    const perf = (performanceSlider.value === '0') ? 'realtime' : 'quality';
+                    vSettings = { width:trackSettings.width, height:trackSettings.height, framerate:trackSettings.frameRate, bitrate };
+                    const vConfig = { codec:'avc1.64002A', width:vSettings.width, height:vSettings.height, bitrate:vSettings.bitrate, framerate:vSettings.framerate, hardwareAcceleration:'prefer-hardware', latencyMode:perf };
+                    if (!(await VideoEncoder.isConfigSupported(vConfig)).supported) {
+                        alert(`Video settings not supported.`); return goBackToMenu();
+                    }
+                    videoEncoder = new VideoEncoder({ output:(c,m) => handleVideoEncoderOutput(c,m,vSettings), error:e => console.error(`VErr: ${e.message}`) });
                     await videoEncoder.configure(vConfig);
-
-                    const videoTrack = localStream.getVideoTracks()[0];
-                    const videoProcessor = new MediaStreamTrackProcessor({ track: videoTrack });
-                    const videoFrameReader = videoProcessor.readable.getReader();
-                    
-                    const readVideoFrames = async () => {
-                        while (isBroadcasting) {
-                            const { value: frame, done } = await videoFrameReader.read().catch(() => ({ done: true }));
-                            if (done || !isBroadcasting) break;
-                            const forceKeyFrame = (Date.now() - lastKeyFrameTimestamp) > keyFrameIntervalMs;
-                            if(forceKeyFrame) lastKeyFrameTimestamp = Date.now();
-                            if(videoEncoder.state === 'configured') videoEncoder.encode(frame, { keyFrame: forceKeyFrame });
-                            frame.close();
-                        }
-                    };
-                    readVideoFrames();
+                    readVideoFrames(new MediaStreamTrackProcessor({track:localStream.getVideoTracks()[0]}).readable.getReader());
+                    statusText += `(${vSettings.width}x${vSettings.height}@${Math.round(vSettings.framerate)}fps)`;
                 }
-
-                if (hasAudio && localStream.getAudioTracks().length > 0) {
-                     audioEncoder = new AudioEncoder({
-                        output: async (chunk) => {
-                            if (!isBroadcasting) return;
-                             const chunkData = new Uint8Array(chunk.byteLength);
-                             chunk.copyTo(chunkData);
-                             const message = {
-                                timestamp: chunk.timestamp, 
-                                duration: chunk.duration,
-                                data_base64: arrayBufferToBase64(chunkData.buffer)
-                            };
-                            await streamrClient.publish(AUDIO_STREAM_ID, message);
-                        },
-                        error: e => console.error(`AudioEncoder Error: ${e.message}`)
-                    });
-                    const aConfig = { codec: 'opus', sampleRate: 48000, numberOfChannels: 1, bitrate: 64000 };
+                if(hasAudio) {
+                    const aBitrate = audioQualities[audioQualitySlider.value].bitrate;
+                    const aQualityTxt = audioQualities[audioQualitySlider.value].text;
+                    const aConfig = { codec:'opus', sampleRate:48000, numberOfChannels:1, bitrate:aBitrate };
+                    audioEncoder = new AudioEncoder({ output:handleAudioEncoderOutput, error:e => console.error(`AErr: ${e.message}`) });
                     await audioEncoder.configure(aConfig);
-
-                    const audioTrack = localStream.getAudioTracks()[0];
-                    const audioProcessor = new MediaStreamTrackProcessor({ track: audioTrack });
-                    const audioFrameReader = audioProcessor.readable.getReader();
-
-                    const readAudioFrames = async () => {
-                        while (isBroadcasting) {
-                            const { value: frame, done } = await audioFrameReader.read().catch(() => ({ done: true }));
-                            if (done || !isBroadcasting) break;
-                            if(audioEncoder.state === 'configured') audioEncoder.encode(frame);
-                            frame.close();
-                        }
-                    };
-                    readAudioFrames();
+                    readAudioFrames(new MediaStreamTrackProcessor({track:localStream.getAudioTracks()[0]}).readable.getReader());
+                    if(hasVideo) statusText += " & "; statusText += `Audio (${aQualityTxt})`;
                 }
-
-            } catch (error) {
-                console.error(`Broadcast start error: ${error.message}`);
-                alert(`Error starting broadcast: ${error.message}`);
-                goBackToMenu();
+                broadcastStatus.textContent = statusText;
+            } catch (err) {
+                console.error(`Broadcast start error: ${err.message}`);
+                if(err.name === 'NotAllowedError' || err.name === 'NotFoundError') showPage('settings');
+                else { alert(`Error starting broadcast: ${err.message}`); goBackToMenu(); }
             }
         }
         
+        async function handleVideoEncoderOutput(chunk, metadata, streamSettings) {
+            if (!isBroadcasting) return;
+            const data = new Uint8Array(chunk.byteLength);
+            chunk.copyTo(data);
+            const msg = { type:chunk.type, timestamp:chunk.timestamp, duration:chunk.duration, data_base64:arrayBufferToBase64(data.buffer) };
+            if (chunk.type === 'key' && metadata.decoderConfig) {
+                const config = {...metadata.decoderConfig};
+                if (config.description) config.description = Array.from(new Uint8Array(config.description));
+                config.streamSettings = streamSettings;
+                msg.config = config;
+            }
+            await streamrClient.publish(VIDEO_STREAM_ID, msg);
+        }
+        async function handleAudioEncoderOutput(chunk) {
+            if (!isBroadcasting) return;
+            const data = new Uint8Array(chunk.byteLength);
+            chunk.copyTo(data);
+            const msg = { timestamp:chunk.timestamp, duration:chunk.duration, data_base64:arrayBufferToBase64(data.buffer) };
+            await streamrClient.publish(AUDIO_STREAM_ID, msg);
+        }
+        async function readVideoFrames(reader) {
+            const interval = parseInt(keyframeIntervalSlider.value, 10);
+            while (isBroadcasting) {
+                const { value: frame, done } = await reader.read().catch(() => ({done:true}));
+                if (done || !isBroadcasting) break;
+                const keyFrame = (Date.now() - lastKeyFrameTimestamp) > interval;
+                if(keyFrame) lastKeyFrameTimestamp = Date.now();
+                if(videoEncoder?.state === 'configured') videoEncoder.encode(frame, {keyFrame});
+                frame.close();
+            }
+        }
+        async function readAudioFrames(reader) {
+            while (isBroadcasting) {
+                const { value: frame, done } = await reader.read().catch(() => ({done:true}));
+                if (done || !isBroadcasting) break;
+                if(audioEncoder?.state === 'configured') audioEncoder.encode(frame);
+                frame.close();
+            }
+        }
         async function stopBroadcast() {
-            isBroadcasting = false;
-            stopBroadcasterPresence();
-            if(localStream) localStream.getTracks().forEach(track => track.stop());
-            if (videoEncoder && videoEncoder.state !== 'closed') videoEncoder.close();
-            if (audioEncoder && audioEncoder.state !== 'closed') audioEncoder.close();
+            isBroadcasting = false; stopBroadcasterPresence();
+            localStream?.getTracks().forEach(t => t.stop());
+            if (videoEncoder?.state !== 'closed') videoEncoder.close();
+            if (audioEncoder?.state !== 'closed') audioEncoder.close();
             localVideo.srcObject = null;
         }
 
@@ -674,295 +663,189 @@
         function checkStreamHealth() {
             if (isViewing && lastChunkReceivedTimestamp > 0 && (Date.now() - lastChunkReceivedTimestamp > STALE_STREAM_TIMEOUT_MS)) {
                 if (!statusDot.classList.contains('dot-yellow-flashing')) {
-                    statusDot.className = 'status-dot dot-yellow-flashing';
-                    statusDot.title = 'Connection unstable';
-                    watchStatus.textContent = 'Buffering...';
-                    isPlaying = false;
+                    statusDot.className = 'status-dot dot-yellow-flashing'; statusDot.title = 'Connection unstable';
+                    watchStatus.textContent = 'Buffering...'; isPlaying = false;
                 }
             }
         }
-
         const renderLoop = () => {
             if (!isViewing) return;
-
             if (!isLiveMode && !isManuallyPaused) {
                 if (!isPlaying) {
-                    schedulePlayback(); 
-                } else {
-                     const elapsedSec = audioContext.currentTime - playbackStartTime;
-                    const mediaTimeUs = mediaStartTime + (elapsedSec * 1000000);
-
-                    let lastFrameToRender = null;
-                    while(videoBuffer.length > 0 && videoBuffer[0].timestamp <= mediaTimeUs) {
-                        lastFrameToRender = videoBuffer.shift();
+                    const vDur = (videoBuffer.length > 1) ? (videoBuffer[videoBuffer.length - 1].timestamp - videoBuffer[0].timestamp) / 1000 : 0;
+                    const aDur = (audioBuffer.length > 1) ? (audioBuffer[audioBuffer.length - 1].timestamp - audioBuffer[0].timestamp) / 1000 : 0;
+                    if (vDur >= bufferTargetMs && aDur >= bufferTargetMs) {
+                        mediaStartTime = audioBuffer[0].timestamp;
+                        while (videoBuffer.length > 0 && videoBuffer[0].timestamp < mediaStartTime) videoBuffer.shift().close();
+                        if (videoBuffer.length === 0) return requestAnimationFrame(renderLoop);
+                        isPlaying = true; playbackStartTime = audioContext.currentTime; nextAudioScheduleTime = playbackStartTime;
+                        watchStatus.textContent = detailedWatchStatus; statusDot.className = 'status-dot dot-green';
+                    }
+                }
+                if (isPlaying) {
+                    while (audioBuffer.length > 0) {
+                        const audioData = audioBuffer.shift();
+                        try {
+                            const buffer = audioContext.createBuffer(audioData.numberOfChannels, audioData.numberOfFrames, audioData.sampleRate);
+                            for (let i = 0; i < audioData.numberOfChannels; i++) {
+                                const chanData = new Float32Array(audioData.numberOfFrames);
+                                audioData.copyTo(chanData, {planeIndex: i});
+                                buffer.copyToChannel(chanData, i);
+                            }
+                            const source = audioContext.createBufferSource();
+                            source.buffer = buffer; source.connect(gainNode); source.start(nextAudioScheduleTime);
+                            nextAudioScheduleTime += buffer.duration;
+                        } catch (err) { console.error("Error scheduling audio:", err); } 
+                        finally { audioData.close(); }
+                    }
+                    const mediaTimeUs = mediaStartTime + ((audioContext.currentTime - playbackStartTime) * 1000000);
+                    
+                    let nextFrameToRender = null;
+                    while (videoBuffer.length > 0 && videoBuffer[0].timestamp <= mediaTimeUs) {
+                        nextFrameToRender?.close(); // Discard intermediate frames that we skipped over
+                        nextFrameToRender = videoBuffer.shift();
                     }
 
-                    if (lastFrameToRender) {
-                        canvasContext.drawImage(lastFrameToRender, 0, 0, remoteCanvas.width, remoteCanvas.height);
-                        lastFrameToRender.close();
+                    if (nextFrameToRender) {
+                        canvasContext.drawImage(nextFrameToRender, 0, 0, remoteCanvas.width, remoteCanvas.height);
+                        lastRenderedFrame?.close(); // Close the previously displayed frame
+                        lastRenderedFrame = nextFrameToRender; // The new frame is now the last rendered one
+                    } else if (lastRenderedFrame) {
+                        // If no new frame is ready, keep drawing the last one to avoid flickering
+                        canvasContext.drawImage(lastRenderedFrame, 0, 0, remoteCanvas.width, remoteCanvas.height);
                     }
                     
-                    if (videoBuffer.length === 0 || audioBuffer.length === 0) {
-                        isPlaying = false;
-                        watchStatus.textContent = "Buffering...";
-                        statusDot.className = 'status-dot dot-yellow-flashing';
+                    if (videoBuffer.length === 0 && audioBuffer.length === 0 && audioContext.currentTime > nextAudioScheduleTime) {
+                        isPlaying = false; watchStatus.textContent = "Buffering..."; statusDot.className = 'status-dot dot-yellow-flashing';
                     }
                 }
             }
             requestAnimationFrame(renderLoop);
         };
-        
-        const schedulePlayback = () => {
-            if (isPlaying || videoBuffer.length < 2 || audioBuffer.length < 2 || isManuallyPaused) {
-                return;
-            }
-
-            const videoDuration = (videoBuffer[videoBuffer.length - 1].timestamp - videoBuffer[0].timestamp) / 1000;
-            const audioDuration = (audioBuffer[audioBuffer.length - 1].timestamp - audioBuffer[0].timestamp) / 1000;
-
-            if (videoDuration >= bufferTargetMs && audioDuration >= bufferTargetMs) {
-                isPlaying = true;
-                mediaStartTime = Math.min(videoBuffer[0].timestamp, audioBuffer[0].timestamp);
-                playbackStartTime = audioContext.currentTime;
-
-                const elapsedSec = audioContext.currentTime - playbackStartTime;
-                const mediaTimeUs = mediaStartTime + (elapsedSec * 1000000);
-
-                 while (audioBuffer.length > 0 && audioBuffer[0].timestamp <= mediaTimeUs) {
-                    const audioData = audioBuffer.shift();
-                    try {
-                        const buffer = audioContext.createBuffer(audioData.numberOfChannels, audioData.numberOfFrames, audioData.sampleRate);
-                        for (let i = 0; i < audioData.numberOfChannels; i++) {
-                            const channelData = new Float32Array(audioData.numberOfFrames);
-                            audioData.copyTo(channelData, { planeIndex: i });
-                            buffer.copyToChannel(channelData, i);
-                        }
-                        const source = audioContext.createBufferSource();
-                        source.buffer = buffer;
-                        source.connect(gainNode);
-                        source.start(playbackStartTime);
-                    } catch (err) { console.error("Error playing audio data:", err); }
-                }
-
-                watchStatus.textContent = detailedWatchStatus;
-                statusDot.className = 'status-dot dot-green';
-            }
-        };
-        
         async function joinStream() {
-            if (!window.VideoDecoder || !window.AudioDecoder) {
-                alert('Error: WebCodecs API not supported on this browser.');
-                return;
-            }
-            showPage('watch');
-            isViewing = true;
-            startViewerPresence();
+            if (!window.VideoDecoder || !window.AudioDecoder) return alert('Error: WebCodecs API not supported.');
+            showPage('watch'); isViewing = true; startViewerPresence();
             watchStatus.textContent = detailedWatchStatus;
-            statusDot.className = 'status-dot dot-yellow';
-            statusDot.title = 'Connecting...';
-
+            statusDot.className = 'status-dot dot-yellow'; statusDot.title = 'Connecting...';
             streamHealthInterval = setInterval(checkStreamHealth, 1000);
             renderLoopId = requestAnimationFrame(renderLoop);
-
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            await audioContext.resume();
-            
+            await audioContext.resume(); nextAudioScheduleTime = audioContext.currentTime;
             gainNode = audioContext.createGain();
             gainNode.gain.setValueAtTime(volumeSlider.value / 100, audioContext.currentTime);
             gainNode.connect(audioContext.destination);
-
             videoDecoder = new VideoDecoder({
-                output: (frame) => {
-                    if (isLiveMode && !isManuallyPaused) {
-                        canvasContext.drawImage(frame, 0, 0, remoteCanvas.width, remoteCanvas.height);
-                        frame.close();
-                    } else {
-                        videoBuffer.push(frame);
-                        videoBuffer.sort((a, b) => a.timestamp - b.timestamp);
-                    }
+                output: f => {
+                    if (isLiveMode && !isManuallyPaused) { canvasContext.drawImage(f, 0, 0, remoteCanvas.width, remoteCanvas.height); f.close(); } 
+                    else { videoBuffer.push(f); videoBuffer.sort((a,b) => a.timestamp - b.timestamp); }
                 },
-                error: e => console.error(`VideoDecoder Error: ${e.message}`)
+                error: e => console.error(`VDecErr: ${e.message}`)
             });
-
             audioDecoder = new AudioDecoder({
-                output: (audioData) => {
-                     if (isLiveMode && !isManuallyPaused) {
+                output: d => {
+                    if (isLiveMode && !isManuallyPaused) {
                         try {
-                            const buffer = audioContext.createBuffer(audioData.numberOfChannels, audioData.numberOfFrames, audioData.sampleRate);
-                            for (let i = 0; i < audioData.numberOfChannels; i++) {
-                                const channelData = new Float32Array(audioData.numberOfFrames);
-                                audioData.copyTo(channelData, { planeIndex: i });
-                                buffer.copyToChannel(channelData, i);
+                            const buffer = audioContext.createBuffer(d.numberOfChannels, d.numberOfFrames, d.sampleRate);
+                            for (let i = 0; i < d.numberOfChannels; i++) {
+                                const chanData = new Float32Array(d.numberOfFrames);
+                                d.copyTo(chanData, {planeIndex: i});
+                                buffer.copyToChannel(chanData, i);
                             }
                             const source = audioContext.createBufferSource();
-                            source.buffer = buffer;
-                            source.connect(gainNode);
-                            source.start();
-                        } catch (err) { console.error("Error playing audio data:", err); }
-                    } else {
-                        audioBuffer.push(audioData);
-                        audioBuffer.sort((a, b) => a.timestamp - b.timestamp);
-                    }
+                            source.buffer = buffer; source.connect(gainNode);
+                            const scheduleTime = Math.max(audioContext.currentTime, nextAudioScheduleTime);
+                            source.start(scheduleTime);
+                            nextAudioScheduleTime = scheduleTime + buffer.duration;
+                        } catch (err) { console.error("Error playing audio:", err); } 
+                        finally { d.close(); }
+                    } else { audioBuffer.push(d); audioBuffer.sort((a,b) => a.timestamp - b.timestamp); }
                 },
-                error: e => console.error(`AudioDecoder Error: ${e.message}`)
+                error: e => console.error(`ADecErr: ${e.message}`)
             });
-
             const handleMessage = () => {
                 lastChunkReceivedTimestamp = Date.now();
                 if (statusDot.classList.contains('dot-yellow-flashing') || statusDot.classList.contains('dot-yellow')) {
-                     statusDot.className = 'status-dot dot-green';
-                     statusDot.title = 'Connected';
+                     statusDot.className = 'status-dot dot-green'; statusDot.title = 'Connected';
                      watchStatus.textContent = detailedWatchStatus;
                 }
             };
-
-            videoSubscription = await streamrClient.subscribe(VIDEO_STREAM_ID, (message) => {
-                if (!isViewing) return;
-                handleMessage();
-
-                if (message.config && videoDecoder.state === 'unconfigured') {
-                    const config = message.config;
-                    if (config.description) config.description = new Uint8Array(config.description).buffer;
-                    videoDecoder.configure(config);
-
-                    remoteCanvas.width = config.codedWidth;
-                    remoteCanvas.height = config.codedHeight;
-                    
-                    if (config.streamSettings) {
-                        const s = config.streamSettings;
-                        detailedWatchStatus = `Receiving: ${s.width}x${s.height} @ ${s.framerate}fps, ~${(s.bitrate / 1000000).toFixed(1)}Mbps`;
-                    } else {
-                        detailedWatchStatus = `Receiving: ${config.codedWidth}x${config.codedHeight}`;
-                    }
+            videoSubscription = await streamrClient.subscribe(VIDEO_STREAM_ID, msg => {
+                if (!isViewing) return; handleMessage();
+                if (msg.config && videoDecoder.state === 'unconfigured') {
+                    const cfg = msg.config;
+                    if (cfg.description) cfg.description = new Uint8Array(cfg.description).buffer;
+                    videoDecoder.configure(cfg);
+                    remoteCanvas.width = cfg.codedWidth; remoteCanvas.height = cfg.codedHeight;
+                    const s = cfg.streamSettings;
+                    detailedWatchStatus = s ? `Receiving: ${s.width}x${s.height} @ ${Math.round(s.framerate)}fps, ~${(s.bitrate / 1000000).toFixed(1)}Mbps` : `Receiving: ${cfg.codedWidth}x${cfg.codedHeight}`;
                     watchStatus.textContent = detailedWatchStatus;
                 }
-                
-                const chunk = new EncodedVideoChunk({
-                    type: message.type,
-                    timestamp: message.timestamp,
-                    duration: message.duration,
-                    data: base64ToArrayBuffer(message.data_base64)
-                });
-
+                const chunk = new EncodedVideoChunk({ type:msg.type, timestamp:msg.timestamp, duration:msg.duration, data:base64ToArrayBuffer(msg.data_base64) });
                 if (videoDecoder.state === 'configured') videoDecoder.decode(chunk);
             });
-
-            audioSubscription = await streamrClient.subscribe(AUDIO_STREAM_ID, (message) => {
-                if (!isViewing) return;
-                handleMessage();
-
-                if (audioDecoder.state === 'unconfigured') {
-                     audioDecoder.configure({ codec: 'opus', sampleRate: 48000, numberOfChannels: 1 });
-                }
-                
-                const chunk = new EncodedAudioChunk({
-                    type: 'key',
-                    timestamp: message.timestamp,
-                    duration: message.duration,
-                    data: base64ToArrayBuffer(message.data_base64)
-                });
+            audioSubscription = await streamrClient.subscribe(AUDIO_STREAM_ID, msg => {
+                if (!isViewing) return; handleMessage();
+                if (audioDecoder.state === 'unconfigured') audioDecoder.configure({ codec:'opus', sampleRate:48000, numberOfChannels:1 });
+                const chunk = new EncodedAudioChunk({ type:'key', timestamp:msg.timestamp, duration:msg.duration, data:base64ToArrayBuffer(msg.data_base64) });
                 if(audioDecoder.state === 'configured') audioDecoder.decode(chunk);
             });
         }
-        
         async function stopViewing() {
-            isViewing = false;
-            stopViewerPresence(true);
-
+            isViewing = false; stopViewerPresence(true);
             if(renderLoopId) cancelAnimationFrame(renderLoopId);
-            renderLoopId = null;
-            videoBuffer = [];
-            audioBuffer = [];
-            isPlaying = false;
-            isManuallyPaused = false;
-
-
-            if (streamHealthInterval) clearInterval(streamHealthInterval);
-            streamHealthInterval = null;
-            lastChunkReceivedTimestamp = 0;
-            statusDot.className = 'status-dot dot-red';
-            statusDot.title = 'Disconnected';
-            detailedWatchStatus = 'Looking for a broadcast...';
             
+            videoBuffer.forEach(f => f.close()); 
+            audioBuffer.forEach(c => c.close());
+            lastRenderedFrame?.close();
+            videoBuffer = []; 
+            audioBuffer = [];
+            lastRenderedFrame = null;
+
+            isPlaying = false; isManuallyPaused = false;
+            if (streamHealthInterval) clearInterval(streamHealthInterval);
+            lastChunkReceivedTimestamp = 0;
+            statusDot.className = 'status-dot dot-red'; statusDot.title = 'Disconnected';
+            detailedWatchStatus = 'Looking for a broadcast...';
             if (videoSubscription) await videoSubscription.unsubscribe();
             if (audioSubscription) await audioSubscription.unsubscribe();
-            videoSubscription = null;
-            audioSubscription = null;
-
-            if (videoDecoder && videoDecoder.state !== 'closed') videoDecoder.close();
-            if (audioDecoder && audioDecoder.state !== 'closed') audioDecoder.close();
+            if (videoDecoder?.state !== 'closed') videoDecoder.close();
+            if (audioDecoder?.state !== 'closed') audioDecoder.close();
             if(audioContext?.state !== 'closed') await audioContext.close();
         }
 
         // --- Presence Logic ---
         function updateViewerCountUI(count) {
-            viewerCountBroadcasterValue.textContent = count;
-            viewerCountWatcherValue.textContent = count;
+            viewerCountBroadcasterValue.textContent = count; viewerCountWatcherValue.textContent = count;
             viewerCountBroadcaster.classList.toggle('hidden', count < 0);
             viewerCountWatcher.classList.toggle('hidden', count < 0);
         }
-
         async function startBroadcasterPresence() {
-            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, (message) => {
-                if(message.userId) {
-                    if(message.type === 'join' || message.type === 'heartbeat') {
-                        viewers.set(message.userId, Date.now());
-                    } else if (message.type === 'leave') {
-                        viewers.delete(message.userId);
-                    }
-                }
+            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, msg => {
+                if(msg.userId) { if(msg.type==='join'||msg.type==='heartbeat') viewers.set(msg.userId, Date.now()); else if (msg.type==='leave') viewers.delete(msg.userId); }
             });
-
             broadcasterPresenceInterval = setInterval(async () => {
                 const now = Date.now();
-                let changed = false;
-                for (const [userId, lastSeen] of viewers.entries()) {
-                    if (now - lastSeen > VIEWER_TIMEOUT_MS) {
-                        viewers.delete(userId);
-                        changed = true;
-                    }
-                }
-                const count = viewers.size;
-                updateViewerCountUI(count);
-                await streamrClient.publish(PRESENCE_STREAM_ID, { type: 'viewer_count_update', count });
-
+                for (const [id, seen] of viewers.entries()) if (now-seen > VIEWER_TIMEOUT_MS) viewers.delete(id);
+                updateViewerCountUI(viewers.size);
+                await streamrClient.publish(PRESENCE_STREAM_ID, { type:'viewer_count_update', count:viewers.size });
             }, 5000);
         }
-
         function stopBroadcasterPresence() {
              if (broadcasterPresenceInterval) clearInterval(broadcasterPresenceInterval);
              if (presenceSubscription) presenceSubscription.unsubscribe();
-             broadcasterPresenceInterval = null;
-             presenceSubscription = null;
-             viewers.clear();
-             updateViewerCountUI(-1);
+             viewers.clear(); updateViewerCountUI(-1);
         }
-
         async function startViewerPresence() {
             currentUserId = `viewer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            await streamrClient.publish(PRESENCE_STREAM_ID, { type: 'join', userId: currentUserId });
-
-            presenceHeartbeatInterval = setInterval(() => {
-                 streamrClient.publish(PRESENCE_STREAM_ID, { type: 'heartbeat', userId: currentUserId });
-            }, HEARTBEAT_INTERVAL_MS);
-
-            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, (message) => {
-                if (message.type === 'viewer_count_update') {
-                    updateViewerCountUI(message.count);
-                }
-            });
+            await streamrClient.publish(PRESENCE_STREAM_ID, { type:'join', userId:currentUserId });
+            presenceHeartbeatInterval = setInterval(() => streamrClient.publish(PRESENCE_STREAM_ID, { type:'heartbeat', userId:currentUserId }), HEARTBEAT_INTERVAL_MS);
+            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, msg => { if(msg.type==='viewer_count_update') updateViewerCountUI(msg.count); });
         }
-        
-        function stopViewerPresence(shouldSendLeave = false) {
+        function stopViewerPresence(sendLeave = false) {
             if (presenceHeartbeatInterval) clearInterval(presenceHeartbeatInterval);
             if (presenceSubscription) presenceSubscription.unsubscribe();
-            presenceHeartbeatInterval = null;
-            presenceSubscription = null;
-            if(shouldSendLeave && currentUserId) {
-                streamrClient.publish(PRESENCE_STREAM_ID, { type: 'leave', userId: currentUserId });
-            }
-            currentUserId = null;
-            updateViewerCountUI(-1);
+            if(sendLeave && currentUserId) streamrClient.publish(PRESENCE_STREAM_ID, { type:'leave', userId:currentUserId });
+            currentUserId = null; updateViewerCountUI(-1);
         }
 
         function updatePlayPauseButton() {
@@ -976,19 +859,15 @@
             if (isViewing) await stopViewing();
             showPage('menu');
         }
-
         function handleFullscreen() {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            } else {
-                remoteCanvas.requestFullscreen().catch(err => {
-                    alert(`Fullscreen Error: ${err.message}`);
-                });
-            }
+            if (document.fullscreenElement) document.exitFullscreen();
+            else remoteCanvas.requestFullscreen().catch(err => alert(`Fullscreen Error: ${err.message}`));
         }
         
-        goSettingsBtn.onclick = async () => {
-            await populateDeviceLists();
+        goSettingsBtn.onclick = () => {
+            document.getElementById('source-camera').checked = true;
+            broadcastSourceType = 'camera';
+            broadcastSourceRadios[0].dispatchEvent(new Event('change')); 
             showPage('settings');
         };
         goWatchBtn.onclick = joinStream;
@@ -998,30 +877,14 @@
         playPauseBtn.onclick = () => {
             isManuallyPaused = !isManuallyPaused;
             updatePlayPauseButton();
-
-            if (isManuallyPaused) {
-                isPlaying = false; // Stop the render loop from processing buffer
-                 if (audioContext && audioContext.state === 'running') {
-                    audioContext.suspend();
-                }
-            } else {
-                 if (audioContext && audioContext.state === 'suspended') {
-                    audioContext.resume();
-                }
-                // When we unpause, kickstart the playback logic again.
-                schedulePlayback(); 
+            if (audioContext) {
+                if (isManuallyPaused) audioContext.suspend();
+                else audioContext.resume();
             }
         };
 
-        window.addEventListener('beforeunload', () => {
-             if(isViewing && currentUserId) {
-                 streamrClient.publish(PRESENCE_STREAM_ID, { type: 'leave', userId: currentUserId });
-             }
-        });
-
+        window.addEventListener('beforeunload', () => { if(isViewing && currentUserId) streamrClient.publish(PRESENCE_STREAM_ID, { type:'leave', userId:currentUserId }); });
     </script>
 </body>
 </html>
-
-
 

@@ -194,7 +194,7 @@
                             <label for="bitrateSlider" class="text-sm font-medium text-zinc-400">Video Bitrate</label>
                             <span id="bitrateValue" class="text-sm font-mono text-zinc-400">2.0 Mbps</span>
                         </div>
-                        <input id="bitrateSlider" type="range" min="500000" max="5000000" value="2000000" step="100000" class="disabled:opacity-50">
+                        <input id="bitrateSlider" type="range" min="500000" max="12000000" value="2000000" step="100000" class="disabled:opacity-50">
                     </div>
                 </div>
 
@@ -533,35 +533,66 @@
         
         // --- Settings Page Logic ---
         async function populateDeviceLists() {
+            // Request permissions separately to avoid failing if one device type is missing.
+            // This also helps populate device labels for enumeration.
             try {
-                await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop());
+            } catch (err) {
+                console.warn("Could not get video device access:", err.message);
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
+            } catch (err) {
+                console.warn("Could not get audio device access:", err.message);
+            }
+
+            // Now, enumerate devices with permissions hopefully granted.
+            try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                videoSourceSelect.innerHTML = ''; audioSourceSelect.innerHTML = '';
+                videoSourceSelect.innerHTML = ''; 
+                audioSourceSelect.innerHTML = '';
                 let hasVideo = false, hasAudio = false;
+
                 devices.forEach(device => {
-                    if (!device.label) return;
+                    // Skip output devices or devices without a proper label/ID
+                    if (!device.label || !device.deviceId || device.kind === 'audiooutput') return; 
+                    
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     if (device.kind === 'videoinput') {
                         option.text = device.label || `Camera ${videoSourceSelect.length + 1}`;
-                        videoSourceSelect.appendChild(option); hasVideo = true;
+                        videoSourceSelect.appendChild(option); 
+                        hasVideo = true;
                     } else if (device.kind === 'audioinput') {
                         option.text = device.label || `Microphone ${audioSourceSelect.length + 1}`;
-                        audioSourceSelect.appendChild(option); hasAudio = true;
+                        audioSourceSelect.appendChild(option); 
+                        hasAudio = true;
                     }
                 });
+
+                // Update UI based on what was found
                 videoSourceSelect.disabled = !hasVideo; 
                 audioSourceSelect.disabled = !hasAudio;
                 audioQualitySlider.disabled = !hasAudio;
-                startBroadcastBtn.disabled = !hasVideo;
                 
-                if (hasAudio) startAudioMeter(audioSourceSelect.value);
-                else stopAudioMeter();
+                // Only disable the start button if the current mode is 'camera' AND no camera is found.
+                if (broadcastSourceType === 'camera') {
+                    startBroadcastBtn.disabled = !hasVideo;
+                } else {
+                    startBroadcastBtn.disabled = false;
+                }
                 
-                if (!hasVideo && broadcastSourceType === 'camera') alert("No camera found. Please connect a camera to broadcast.");
-
+                if (hasAudio) {
+                    startAudioMeter(audioSourceSelect.value);
+                } else {
+                    stopAudioMeter();
+                }
+                
             } catch (err) {
-                alert(`Error getting media devices: ${err.message}. Please check permissions.`);
+                // This catch is for the enumerateDevices call, which is less likely to fail.
+                alert(`Error enumerating devices: ${err.message}.`);
                 showPage('menu');
             }
         }
@@ -645,7 +676,7 @@
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-               // goSettingsBtn.disabled = false;
+              //  goSettingsBtn.disabled = false; 
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);

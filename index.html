@@ -234,7 +234,7 @@
                                 <div class="tooltip-container">
                                     <label for="keyframeIntervalSlider" class="text-sm font-medium text-zinc-400">Key Frame Interval</label>
                                      <div class="tooltip-icon">
-                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 A 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
                                     </div>
                                     <span class="tooltip-text">How often a full video frame is sent. Shorter intervals can improve stream recovery on unstable connections but use more data.</span>
                                 </div>
@@ -508,7 +508,6 @@
                 
                 if (isCamera) {
                     populateDeviceLists();
-                    startBroadcastBtn.disabled = videoSourceSelect.options.length === 0;
                 } else {
                     startBroadcastBtn.disabled = false;
                 }
@@ -547,7 +546,7 @@
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-             //   goSettingsBtn.disabled = false ;
+            //    goSettingsBtn.disabled = false;
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
@@ -703,16 +702,16 @@
                     
                     let nextFrameToRender = null;
                     while (videoBuffer.length > 0 && videoBuffer[0].timestamp <= mediaTimeUs) {
-                        nextFrameToRender?.close(); // Discard intermediate frames that we skipped over
+                        lastRenderedFrame?.close();
+                        lastRenderedFrame = nextFrameToRender;
                         nextFrameToRender = videoBuffer.shift();
                     }
 
                     if (nextFrameToRender) {
                         canvasContext.drawImage(nextFrameToRender, 0, 0, remoteCanvas.width, remoteCanvas.height);
-                        lastRenderedFrame?.close(); // Close the previously displayed frame
-                        lastRenderedFrame = nextFrameToRender; // The new frame is now the last rendered one
+                        lastRenderedFrame?.close();
+                        lastRenderedFrame = nextFrameToRender;
                     } else if (lastRenderedFrame) {
-                        // If no new frame is ready, keep drawing the last one to avoid flickering
                         canvasContext.drawImage(lastRenderedFrame, 0, 0, remoteCanvas.width, remoteCanvas.height);
                     }
                     
@@ -776,7 +775,9 @@
                     const cfg = msg.config;
                     if (cfg.description) cfg.description = new Uint8Array(cfg.description).buffer;
                     videoDecoder.configure(cfg);
-                    remoteCanvas.width = cfg.codedWidth; remoteCanvas.height = cfg.codedHeight;
+                    remoteCanvas.width = cfg.codedWidth; 
+                    remoteCanvas.height = cfg.codedHeight;
+                    remoteCanvas.style.aspectRatio = `${cfg.codedWidth} / ${cfg.codedHeight}`;
                     const s = cfg.streamSettings;
                     detailedWatchStatus = s ? `Receiving: ${s.width}x${s.height} @ ${Math.round(s.framerate)}fps, ~${(s.bitrate / 1000000).toFixed(1)}Mbps` : `Receiving: ${cfg.codedWidth}x${cfg.codedHeight}`;
                     watchStatus.textContent = detailedWatchStatus;
@@ -801,6 +802,7 @@
             videoBuffer = []; 
             audioBuffer = [];
             lastRenderedFrame = null;
+            remoteCanvas.style.aspectRatio = '';
 
             isPlaying = false; isManuallyPaused = false;
             if (streamHealthInterval) clearInterval(streamHealthInterval);
@@ -866,9 +868,7 @@
         }
         
         goSettingsBtn.onclick = () => {
-            document.getElementById('source-camera').checked = true;
-            broadcastSourceType = 'camera';
-            broadcastSourceRadios[0].dispatchEvent(new Event('change')); 
+            document.getElementById('source-camera').dispatchEvent(new Event('change'));
             showPage('settings');
         };
         goWatchBtn.onclick = joinStream;
@@ -888,8 +888,4 @@
     </script>
 </body>
 </html>
-
-
-
-
 

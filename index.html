@@ -544,10 +544,10 @@
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 menuStatus.textContent = 'Connecting to the P2P network...';
-          //      streamrClient = new StreamrClient();
+                streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-                goSettingsBtn.disabled = false; goWatchBtn.disabled = false;
+                goSettingsBtn.disabled = true ; goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
                 menuStatus.textContent = `Error connecting: ${error.message}. Please refresh.`;
@@ -887,5 +887,6 @@
     </script>
 </body>
 </html>
+
 
 

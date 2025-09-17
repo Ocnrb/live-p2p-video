@@ -169,6 +169,7 @@
                     <div>
                         <label for="audioSourceSelect" class="block mb-2 text-sm font-medium text-zinc-400">Microphone</label>
                         <select id="audioSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5 disabled:opacity-50" disabled></select>
+                        <canvas id="audio-meter-canvas" width="300" height="10" class="mt-2 w-full h-2 bg-zinc-700 rounded-full"></canvas>
                     </div>
                 </div>
                 
@@ -202,9 +203,9 @@
                      <div>
                         <div class="flex justify-between items-center mb-2">
                              <label for="audioQualitySlider" class="text-sm font-medium text-zinc-400">Quality</label>
-                             <span id="audioQualityValue" class="text-sm font-mono text-zinc-400">Balanced</span>
+                             <span id="audioQualityValue" class="text-sm font-mono text-zinc-400">Balanced (64 Kb)</span>
                         </div>
-                        <input id="audioQualitySlider" type="range" min="0" max="2" value="1" step="1" class="disabled:opacity-50">
+                        <input id="audioQualitySlider" type="range" min="0" max="3" value="1" step="1" class="disabled:opacity-50">
                     </div>
                 </div>
                 
@@ -234,7 +235,7 @@
                                 <div class="tooltip-container">
                                     <label for="keyframeIntervalSlider" class="text-sm font-medium text-zinc-400">Key Frame Interval</label>
                                      <div class="tooltip-icon">
-                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 A 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
                                     </div>
                                     <span class="tooltip-text">How often a full video frame is sent. Shorter intervals can improve stream recovery on unstable connections but use more data.</span>
                                 </div>
@@ -284,7 +285,9 @@
             </div>
             <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
                 <div class="relative group">
-                    <canvas id="remoteCanvas" class="w-full h-auto bg-black rounded-md"></canvas>
+                    <div id="canvas-wrapper" class="w-full bg-black rounded-md overflow-hidden">
+                        <canvas id="remoteCanvas" class="w-full h-full block"></canvas>
+                    </div>
                     <div class="absolute top-2 right-2 bg-zinc-900/50 backdrop-blur-sm rounded-full p-2">
                         <span id="statusDot" class="status-dot dot-red" title="Disconnected"></span>
                     </div>
@@ -323,7 +326,15 @@
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" id="liveModeCheckbox" class="sr-only peer" checked>
                                 <div class="w-11 h-6 bg-zinc-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zinc-600"></div>
-                                <span class="ml-3 text-sm font-medium text-zinc-300">Live Mode</span>
+                                <span class="ml-3 text-sm font-medium text-zinc-300 flex items-center gap-2">
+                                    <svg id="direct-link-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd" />
+                                    </svg>
+                                    <svg id="direct-link-broken-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fill-rule="evenodd" d="M12.293 7.293a1 1 0 011.414 0l2 2a1 1 0 010 1.414l-2 2a1 1 0 01-1.414-1.414L12.586 11H10a1 1 0 110-2h2.586l-.293-.293a1 1 0 010-1.414zM7.707 12.707a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414l2-2a1 1 0 111.414 1.414L7.414 9H10a1 1 0 110 2H7.414l.293.293a1 1 0 010 1.414zM4 10a1 1 0 011-1h4a1 1 0 110 2H5a1 1 0 01-1-1zm11 0a1 1 0 011-1h1a1 1 0 110 2h-1a1 1 0 01-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                    Direct Link
+                                </span>
                             </label>
                         </div>
                         <div id="latency-controls" class="hidden">
@@ -363,6 +374,7 @@
         
         const localVideo = document.getElementById('localVideo');
         const remoteCanvas = document.getElementById('remoteCanvas');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
         const broadcastStatus = document.getElementById('broadcast-status');
         const watchStatus = document.getElementById('watch-status');
         const statusDot = document.getElementById('statusDot');
@@ -383,6 +395,7 @@
         const videoQualityGroup = document.getElementById('video-quality-group');
         const videoSourceSelect = document.getElementById('videoSourceSelect');
         const audioSourceSelect = document.getElementById('audioSourceSelect');
+        const audioMeterCanvas = document.getElementById('audio-meter-canvas');
         const resolutionSlider = document.getElementById('resolutionSlider');
         const resolutionValue = document.getElementById('resolutionValue');
         const resolutionSetting = document.getElementById('resolution-setting');
@@ -404,12 +417,19 @@
         const bufferValue = document.getElementById('bufferValue');
         const liveModeCheckbox = document.getElementById('liveModeCheckbox');
         const latencyControls = document.getElementById('latency-controls');
+        const directLinkIcon = document.getElementById('direct-link-icon');
+        const directLinkBrokenIcon = document.getElementById('direct-link-broken-icon');
         
         const canvasContext = remoteCanvas.getContext('2d');
 
         // --- Constants and Mappings ---
         const resolutions = [ { text: '480p', value: '640x480' }, { text: '720p', value: '1280x720' }, { text: '1080p', value: '1920x1080' }];
-        const audioQualities = [ { text: 'Voice', bitrate: 32000 }, { text: 'Balanced', bitrate: 64000 }, { text: 'High Fidelity', bitrate: 128000 }];
+        const audioQualities = [ 
+            { text: 'Voice (32 Kb)', bitrate: 32000 }, 
+            { text: 'Balanced (64 Kb)', bitrate: 64000 }, 
+            { text: 'High-Fidelity (128 Kb)', bitrate: 128000 },
+            { text: 'Studio (256 Kb)', bitrate: 256000 }
+        ];
 
         // --- State Variables ---
         let streamrClient;
@@ -422,6 +442,9 @@
         let lastKeyFrameTimestamp = 0, lastChunkReceivedTimestamp = 0, streamHealthInterval = null;
         const STALE_STREAM_TIMEOUT_MS = 3000;
         let broadcastSourceType = 'camera';
+
+        // Audio Meter State
+        let audioMeter = { context: null, stream: null, analyser: null, animationId: null };
 
         // Presence state
         let currentUserId = null, viewers = new Map();
@@ -436,6 +459,7 @@
         let playbackStartTime = 0, mediaStartTime = 0;
         let bufferTargetMs = 200, renderLoopId = null, isLiveMode = true, nextAudioScheduleTime = 0;
         let lastRenderedFrame = null;
+        let currentStreamConfigId = null; 
 
         // --- Helper Functions ---
         function arrayBufferToBase64(buffer) {
@@ -451,8 +475,63 @@
         function showPage(pageName) {
             Object.values(pages).forEach(p => p.classList.remove('active'));
             if(pages[pageName]) pages[pageName].classList.add('active');
+            if (pageName !== 'settings') stopAudioMeter();
         }
 
+        // --- Audio Meter Logic ---
+        function stopAudioMeter() {
+            if (audioMeter.animationId) cancelAnimationFrame(audioMeter.animationId);
+            audioMeter.stream?.getTracks().forEach(track => track.stop());
+            audioMeter.context?.close();
+            const ctx = audioMeterCanvas.getContext('2d');
+            ctx.clearRect(0, 0, audioMeterCanvas.width, audioMeterCanvas.height);
+            audioMeter = { context: null, stream: null, analyser: null, animationId: null };
+        }
+
+        async function startAudioMeter(deviceId) {
+            stopAudioMeter();
+            if (!deviceId) return;
+            try {
+                audioMeter.stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: { deviceId: { exact: deviceId }, autoGainControl: false, echoCancellation: true, noiseSuppression: true } 
+                });
+                audioMeter.context = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioMeter.context.createMediaStreamSource(audioMeter.stream);
+                audioMeter.analyser = audioMeter.context.createAnalyser();
+                audioMeter.analyser.fftSize = 256;
+                source.connect(audioMeter.analyser);
+                
+                const bufferLength = audioMeter.analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                const canvasCtx = audioMeterCanvas.getContext('2d');
+                
+                function draw() {
+                    audioMeter.animationId = requestAnimationFrame(draw);
+                    audioMeter.analyser.getByteFrequencyData(dataArray);
+                    
+                    let sum = 0;
+                    for(let i = 0; i < bufferLength; i++) sum += dataArray[i];
+                    const average = sum / bufferLength;
+                    
+                    const width = (average / 128) * audioMeterCanvas.width;
+                    
+                    canvasCtx.clearRect(0, 0, audioMeterCanvas.width, audioMeterCanvas.height);
+                    
+                    const gradient = canvasCtx.createLinearGradient(0, 0, audioMeterCanvas.width, 0);
+                    gradient.addColorStop(0, '#4ade80'); // green
+                    gradient.addColorStop(0.7, '#facc15'); // yellow
+                    gradient.addColorStop(1, '#f87171'); // red
+                    canvasCtx.fillStyle = gradient;
+                    
+                    canvasCtx.fillRect(0, 0, width, audioMeterCanvas.height);
+                };
+                draw();
+            } catch (err) {
+                console.error("Error starting audio meter:", err);
+            }
+        }
+        
+        // --- Settings Page Logic ---
         async function populateDeviceLists() {
             try {
                 await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
@@ -471,10 +550,16 @@
                         audioSourceSelect.appendChild(option); hasAudio = true;
                     }
                 });
-                videoSourceSelect.disabled = !hasVideo; audioSourceSelect.disabled = !hasAudio;
+                videoSourceSelect.disabled = !hasVideo; 
+                audioSourceSelect.disabled = !hasAudio;
                 audioQualitySlider.disabled = !hasAudio;
                 startBroadcastBtn.disabled = !hasVideo;
-                if (!hasVideo) alert("No camera found. Please connect a camera to broadcast.");
+                
+                if (hasAudio) startAudioMeter(audioSourceSelect.value);
+                else stopAudioMeter();
+                
+                if (!hasVideo && broadcastSourceType === 'camera') alert("No camera found. Please connect a camera to broadcast.");
+
             } catch (err) {
                 alert(`Error getting media devices: ${err.message}. Please check permissions.`);
                 showPage('menu');
@@ -482,6 +567,7 @@
         }
         
         // --- Event Listeners for Settings ---
+        audioSourceSelect.addEventListener('change', () => startAudioMeter(audioSourceSelect.value));
         resolutionSlider.addEventListener('input', e => { resolutionValue.textContent = resolutions[e.target.value].text; });
         bitrateSlider.addEventListener('input', e => { bitrateValue.textContent = `${(e.target.value / 1000000).toFixed(1)} Mbps`; });
         framerateSlider.addEventListener('input', e => { framerateValue.textContent = `${e.target.value} fps`; });
@@ -510,6 +596,7 @@
                     populateDeviceLists();
                 } else {
                     startBroadcastBtn.disabled = false;
+                    stopAudioMeter();
                 }
             });
         });
@@ -531,12 +618,24 @@
         liveModeCheckbox.addEventListener('change', e => {
             isLiveMode = e.target.checked;
             latencyControls.classList.toggle('hidden', isLiveMode);
+            
+            // Update icon state
+            directLinkIcon.classList.toggle('hidden', !isLiveMode);
+            directLinkBrokenIcon.classList.toggle('hidden', isLiveMode);
+
+            // Force a full stream reset on the next configuration packet
+            currentStreamConfigId = null; 
+            
             videoBuffer.forEach(f => f.close()); videoBuffer = [];
             audioBuffer.forEach(c => c.close()); audioBuffer = [];
-            isPlaying = false; isManuallyPaused = false;
+            lastRenderedFrame?.close();
+            lastRenderedFrame = null;
+            isPlaying = false; 
+            isManuallyPaused = false;
             updatePlayPauseButton();
-            watchStatus.textContent = detailedWatchStatus;
-            if (!isLiveMode) watchStatus.textContent = 'Buffering...';
+            
+            statusDot.className = 'status-dot dot-yellow';
+            watchStatus.textContent = isLiveMode ? 'Switching to Direct Link...' : 'Buffering...';
         });
 
         // --- Core Logic ---
@@ -546,7 +645,7 @@
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-            //    goSettingsBtn.disabled = false;
+               // goSettingsBtn.disabled = false;
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
@@ -556,18 +655,31 @@
 
         // --- Broadcaster ---
         async function startBroadcast() {
+            stopAudioMeter();
             if (!window.VideoEncoder || !window.AudioEncoder) return alert('Error: WebCodecs API not supported in this browser.');
             try {
+                const audioConstraints = { 
+                    autoGainControl: false, 
+                    echoCancellation: true, 
+                    noiseSuppression: true 
+                };
+
                 if (broadcastSourceType === 'camera') {
                     const vDev = videoSourceSelect.value, aDev = audioSourceSelect.value;
                     const res = resolutions[resolutionSlider.value].value;
                     const [w, h] = res.split('x').map(Number);
                     const fps = parseInt(framerateSlider.value, 10);
-                    const constraints = { video: { deviceId:{exact:vDev}, width:w, height:h, frameRate:{ideal:fps, max:fps} }, audio: { deviceId:{exact:aDev}, echoCancellation:true, noiseSuppression:true } };
+                    const constraints = { 
+                        video: { deviceId:{exact:vDev}, width:w, height:h, frameRate:{ideal:fps, max:fps} }, 
+                        audio: { deviceId:{exact:aDev}, ...audioConstraints } 
+                    };
                     localStream = await navigator.mediaDevices.getUserMedia(constraints);
                     localVideo.classList.add('camera-view');
                 } else {
-                    localStream = await navigator.mediaDevices.getDisplayMedia({ video:{cursor:"always"}, audio:true });
+                    localStream = await navigator.mediaDevices.getDisplayMedia({ 
+                        video: { cursor:"always" }, 
+                        audio: audioConstraints 
+                    });
                     localVideo.classList.remove('camera-view');
                     localStream.getVideoTracks()[0].onended = goBackToMenu;
                 }
@@ -593,7 +705,7 @@
                     videoEncoder = new VideoEncoder({ output:(c,m) => handleVideoEncoderOutput(c,m,vSettings), error:e => console.error(`VErr: ${e.message}`) });
                     await videoEncoder.configure(vConfig);
                     readVideoFrames(new MediaStreamTrackProcessor({track:localStream.getVideoTracks()[0]}).readable.getReader());
-                    statusText += `(${vSettings.width}x${vSettings.height}@${Math.round(vSettings.framerate)}fps)`;
+                    statusText += `(${vSettings.width}x${vSettings.height}@${Math.round(vSettings.framerate)}fps, ${(vSettings.bitrate / 1000000).toFixed(1)} Mbps)`;
                 }
                 if(hasAudio) {
                     const aBitrate = audioQualities[audioQualitySlider.value].bitrate;
@@ -770,21 +882,55 @@
                 }
             };
             videoSubscription = await streamrClient.subscribe(VIDEO_STREAM_ID, msg => {
-                if (!isViewing) return; handleMessage();
-                if (msg.config && videoDecoder.state === 'unconfigured') {
-                    const cfg = msg.config;
-                    if (cfg.description) cfg.description = new Uint8Array(cfg.description).buffer;
-                    videoDecoder.configure(cfg);
-                    remoteCanvas.width = cfg.codedWidth; 
-                    remoteCanvas.height = cfg.codedHeight;
-                    remoteCanvas.style.aspectRatio = `${cfg.codedWidth} / ${cfg.codedHeight}`;
-                    const s = cfg.streamSettings;
-                    detailedWatchStatus = s ? `Receiving: ${s.width}x${s.height} @ ${Math.round(s.framerate)}fps, ~${(s.bitrate / 1000000).toFixed(1)}Mbps` : `Receiving: ${cfg.codedWidth}x${cfg.codedHeight}`;
+                if (!isViewing) return; 
+                handleMessage();
+
+                if (msg.config) {
+                    const newConfig = msg.config;
+                    const newConfigId = `${newConfig.codedWidth}x${newConfig.codedHeight}`;
+                    
+                    const s = newConfig.streamSettings;
+                    detailedWatchStatus = s ? `Receiving: ${s.width}x${s.height} @ ${Math.round(s.framerate)}fps, ~${(s.bitrate / 1000000).toFixed(1)}Mbps` : `Receiving: ${newConfig.codedWidth}x${newConfig.codedHeight}`;
                     watchStatus.textContent = detailedWatchStatus;
+
+                    // Reconfigure only if the stream settings have ACTUALLY changed.
+                    if (newConfigId !== currentStreamConfigId) {
+                        currentStreamConfigId = newConfigId;
+
+                        // Re-configure the video decoder with the new settings
+                        if (newConfig.description) newConfig.description = new Uint8Array(newConfig.description).buffer;
+                        videoDecoder.configure(newConfig);
+
+                        // Clear all buffers to discard old data from the previous stream
+                        videoBuffer.forEach(f => f.close()); 
+                        audioBuffer.forEach(c => c.close());
+                        lastRenderedFrame?.close();
+                        videoBuffer = []; 
+                        audioBuffer = [];
+                        lastRenderedFrame = null;
+                        isPlaying = false;
+
+                        // Reset audio synchronization
+                        if(audioDecoder.state === 'configured') audioDecoder.reset();
+                        if(audioContext) nextAudioScheduleTime = audioContext.currentTime;
+
+                        // Update UI elements
+                        remoteCanvas.width = newConfig.codedWidth; 
+                        remoteCanvas.height = newConfig.codedHeight;
+                        canvasWrapper.style.aspectRatio = `${newConfig.codedWidth} / ${newConfig.codedHeight}`;
+                    }
                 }
-                const chunk = new EncodedVideoChunk({ type:msg.type, timestamp:msg.timestamp, duration:msg.duration, data:base64ToArrayBuffer(msg.data_base64) });
-                if (videoDecoder.state === 'configured') videoDecoder.decode(chunk);
+                
+                if (videoDecoder.state === 'configured') {
+                    const chunk = new EncodedVideoChunk({ type:msg.type, timestamp:msg.timestamp, duration:msg.duration, data:base64ToArrayBuffer(msg.data_base64) });
+                    try {
+                        videoDecoder.decode(chunk);
+                    } catch (e) {
+                        console.error("Error decoding video chunk:", e);
+                    }
+                }
             });
+
             audioSubscription = await streamrClient.subscribe(AUDIO_STREAM_ID, msg => {
                 if (!isViewing) return; handleMessage();
                 if (audioDecoder.state === 'unconfigured') audioDecoder.configure({ codec:'opus', sampleRate:48000, numberOfChannels:1 });
@@ -802,7 +948,8 @@
             videoBuffer = []; 
             audioBuffer = [];
             lastRenderedFrame = null;
-            remoteCanvas.style.aspectRatio = '';
+            canvasWrapper.style.aspectRatio = '';
+            currentStreamConfigId = null;
 
             isPlaying = false; isManuallyPaused = false;
             if (streamHealthInterval) clearInterval(streamHealthInterval);
@@ -864,7 +1011,7 @@
         }
         function handleFullscreen() {
             if (document.fullscreenElement) document.exitFullscreen();
-            else remoteCanvas.requestFullscreen().catch(err => alert(`Fullscreen Error: ${err.message}`));
+            else canvasWrapper.requestFullscreen().catch(err => alert(`Fullscreen Error: ${err.message}`));
         }
         
         goSettingsBtn.onclick = () => {

@@ -473,7 +473,7 @@
                 });
                 videoSourceSelect.disabled = !hasVideo; audioSourceSelect.disabled = !hasAudio;
                 audioQualitySlider.disabled = !hasAudio;
-                startBroadcastBtn.disabled = !hasVideo;
+                startBroadcastBtn.disabled = true;
                 if (!hasVideo) alert("No camera found. Please connect a camera to broadcast.");
             } catch (err) {
                 alert(`Error getting media devices: ${err.message}. Please check permissions.`);
@@ -547,7 +547,7 @@
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-                goSettingsBtn.disabled = false; goWatchBtn.disabled = true;
+                goSettingsBtn.disabled = false; goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
                 menuStatus.textContent = `Error connecting: ${error.message}. Please refresh.`;
@@ -887,5 +887,4 @@
     </script>
 </body>
 </html>
-
 

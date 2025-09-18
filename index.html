@@ -477,6 +477,19 @@
             if(pages[pageName]) pages[pageName].classList.add('active');
             if (pageName !== 'settings') stopAudioMeter();
         }
+        function insertIntoSortedBuffer(buffer, item) {
+            let low = 0;
+            let high = buffer.length;
+            while (low < high) {
+                const mid = (low + high) >>> 1;
+                if (buffer[mid].timestamp < item.timestamp) {
+                    low = mid + 1;
+                } else {
+                    high = mid;
+                }
+            }
+            buffer.splice(low, 0, item);
+        }
 
         // --- Audio Meter Logic ---
         function stopAudioMeter() {
@@ -676,7 +689,7 @@
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
                 menuStatus.textContent = 'Ready. Choose an option.';
-              //  goSettingsBtn.disabled = false; 
+             //   goSettingsBtn.disabled = false; 
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
@@ -880,7 +893,7 @@
             videoDecoder = new VideoDecoder({
                 output: f => {
                     if (isLiveMode && !isManuallyPaused) { canvasContext.drawImage(f, 0, 0, remoteCanvas.width, remoteCanvas.height); f.close(); } 
-                    else { videoBuffer.push(f); videoBuffer.sort((a,b) => a.timestamp - b.timestamp); }
+                    else { insertIntoSortedBuffer(videoBuffer, f); }
                 },
                 error: e => console.error(`VDecErr: ${e.message}`)
             });
@@ -901,7 +914,7 @@
                             nextAudioScheduleTime = scheduleTime + buffer.duration;
                         } catch (err) { console.error("Error playing audio:", err); } 
                         finally { d.close(); }
-                    } else { audioBuffer.push(d); audioBuffer.sort((a,b) => a.timestamp - b.timestamp); }
+                    } else { insertIntoSortedBuffer(audioBuffer, d); }
                 },
                 error: e => console.error(`ADecErr: ${e.message}`)
             });
@@ -1066,4 +1079,3 @@
     </script>
 </body>
 </html>
-

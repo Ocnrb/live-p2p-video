@@ -444,7 +444,7 @@
         const emojiBtn = document.getElementById('emojiBtn');
         const messagesContainer = document.getElementById('messagesContainer');
         const emojiPicker = document.getElementById('emojiPicker');
-       const emojis = [
+        const emojis = [
             '😂', '😭', '❤️', '👍', '👎', '👏', '🔥', '💯', '🤔', '🙏', '🤯', '🥳', '😎',
             '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😊', '😇', '🙂', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
             '🤩', '🤪', '😜', '😝', '😋', '😛', '🤑', '🤭', '🤫', '😶', '😐', '😑', '😏', '😒', '🙄', '😬', '🤥', '😌',
@@ -687,7 +687,7 @@
                 await streamrClient.connect();
                 myPublisherId = await streamrClient.getAddress();
                 menuStatus.textContent = 'Ready. Choose an option.';
-            //    goSettingsBtn.disabled = false;
+               // goSettingsBtn.disabled = false;
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
@@ -823,7 +823,7 @@
             audioContext = new (window.AudioContext || window.webkitAudioContext)(); await audioContext.resume(); nextAudioScheduleTime = audioContext.currentTime;
             gainNode = audioContext.createGain(); gainNode.gain.setValueAtTime(volumeSlider.value / 100, audioContext.currentTime); gainNode.connect(audioContext.destination);
             videoDecoder = new VideoDecoder({
-                output: f => { if (isLiveMode && !isManuallyPaused) { canvasContext.drawImage(f, 0, 0, remoteCanvas.width, remoteCanvas.height); f.close(); } else { insertIntoSortedBuffer(videoBuffer, f); } },
+                output: f => { if (isLiveMode && !isManuallyPaused) { canvasContext.drawImage(f, 0, 0, remoteCanvas.width, remoteCanvas.height); f.close(); } else { videoBuffer.push(f); videoBuffer.sort((a,b) => a.timestamp - b.timestamp); } },
                 error: e => console.error(`VDecErr: ${e.message}`)
             });
             audioDecoder = new AudioDecoder({
@@ -835,7 +835,7 @@
                             const source = audioContext.createBufferSource(); source.buffer = buffer; source.connect(gainNode);
                             const scheduleTime = Math.max(audioContext.currentTime, nextAudioScheduleTime); source.start(scheduleTime); nextAudioScheduleTime = scheduleTime + buffer.duration;
                         } catch (err) { console.error("Error playing audio:", err); } finally { d.close(); }
-                    } else { insertIntoSortedBuffer(audioBuffer, d); }
+                    } else { audioBuffer.push(d); audioBuffer.sort((a,b) => a.timestamp - b.timestamp); }
                 }, error: e => console.error(`ADecErr: ${e.message}`)
             });
             const handleMessage = () => {
@@ -873,7 +873,6 @@
             if (videoDecoder?.state !== 'closed') videoDecoder.close(); if (audioDecoder?.state !== 'closed') audioDecoder.close();
             if(audioContext?.state !== 'closed') await audioContext.close();
         }
-
 
         // --- Presence Logic ---
         function updateViewerCountUI(count) {
@@ -956,5 +955,4 @@
     </script>
 </body>
 </html>
-
 

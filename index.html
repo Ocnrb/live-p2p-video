@@ -687,7 +687,8 @@
                 await streamrClient.connect();
                 myPublisherId = await streamrClient.getAddress();
                 menuStatus.textContent = 'Ready. Choose an option.';
-            //    goSettingsBtn.disabled = false; goWatchBtn.disabled = false;
+            //    goSettingsBtn.disabled = false;
+                goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
                 menuStatus.textContent = `Error connecting: ${error.message}. Please refresh.`;
@@ -955,4 +956,5 @@
     </script>
 </body>
 </html>
+
 

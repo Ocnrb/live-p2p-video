@@ -3,16 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Video Streaming</title>
+    <title>Streamr - P2P Video and Chat</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Streamr Client SDK (Latest Version) -->
     <script src="https://unpkg.com/@streamr/sdk@latest/dist/streamr-sdk.web.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* UI styles */
+        /* Combined styles from both applications */
         body { 
             font-family: 'Inter', sans-serif; 
+            background-color: #121212;
+            color: #e0e0e0;
         }
+
+        /* Video App Styles */
         #localVideo.camera-view { 
             transform: scaleX(-1); 
             -webkit-transform: scaleX(-1); 
@@ -43,18 +50,12 @@
             50% { background-color: #a16207; box-shadow: none; }
             100% { background-color: #facc15; box-shadow: 0 0 5px #facc15; }
         }
-
-        /* Range slider styles */
         input[type="range"] {
             -webkit-appearance: none; appearance: none;
             background: transparent; cursor: pointer; width: 100%;
         }
-        input[type="range"]::-webkit-slider-runnable-track {
-            background: #3f3f46; height: 0.25rem; border-radius: 0.5rem;
-        }
-        input[type="range"]::-moz-range-track {
-            background: #3f3f46; height: 0.25rem; border-radius: 0.5rem;
-        }
+        input[type="range"]::-webkit-slider-runnable-track { background: #3f3f46; height: 0.25rem; border-radius: 0.5rem; }
+        input[type="range"]::-moz-range-track { background: #3f3f46; height: 0.25rem; border-radius: 0.5rem; }
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none; appearance: none;
             margin-top: -6px; background-color: #a1a1aa; height: 1rem;
@@ -66,17 +67,8 @@
         }
         input[type="range"]:hover::-webkit-slider-thumb { background-color: #d4d4d8; }
         input[type="range"]:hover::-moz-range-thumb { background-color: #d4d4d8; }
-
-        /* Tooltip styles */
-        .tooltip-container {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-        }
-        .tooltip-icon {
-            margin-left: 8px;
-            cursor: help;
-        }
+        .tooltip-container { position: relative; display: inline-flex; align-items: center; }
+        .tooltip-icon { margin-left: 8px; cursor: help; }
         .tooltip-text {
             visibility: hidden; width: 220px; background-color: #27272a; color: #d4d4d8;
             text-align: center; border-radius: 6px; padding: 8px; position: absolute;
@@ -84,266 +76,291 @@
             transition: opacity 0.3s; font-size: 0.8rem; font-weight: normal;
             border: 1px solid #3f3f46;
         }
-        .tooltip-container:hover .tooltip-text {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        /* Styling for <details> accordion */
+        .tooltip-container:hover .tooltip-text { visibility: visible; opacity: 1; }
         #advanced-settings-group summary {
-            list-style: none; /* Remove default marker */
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.5rem 0;
+            list-style: none; cursor: pointer; display: flex;
+            justify-content: space-between; align-items: center; padding: 0.5rem 0;
         }
         #advanced-settings-group summary::-webkit-details-marker { display: none; }
         #advanced-settings-group .summary-arrow { transition: transform 0.2s; }
         #advanced-settings-group[open] .summary-arrow { transform: rotate(90deg); }
+
+        /* Chat App Styles (Twitch/YouTube Style) */
+        .message-entry {
+            animation: fadeIn 0.3s ease-in-out;
+            padding: 0.2rem 0.5rem;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        .chat-username {
+            font-weight: 600; /* semibold */
+            margin-right: 0.5rem; /* space between name and message */
+            display: inline;
+        }
+        .chat-message-text {
+            display: inline;
+            color: #e0e0e0; /* main text color */
+        }
+        .send-button { background-color: #2563eb; color: white; width: 2.5rem; height: 2.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: background-color 0.2s; }
+        .send-button:hover { background-color: #1d4ed8; }
+        .emoji-button { background-color: transparent; color: #9ca3af; padding: 0.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin-right: 0.5rem; transition: color 0.2s; }
+        .emoji-button:hover { color: #fbbf24; }
+        .emoji-picker { position: absolute; bottom: 60px; left: 10px; background-color: #1f2937; border: 1px solid #4b5563; border-radius: 0.5rem; padding: 0.5rem; display: flex; flex-wrap: wrap; max-width: 300px; display: none; z-index: 20; }
+        .emoji-picker span { cursor: pointer; margin: 2px; font-size: 1.2rem; padding: 4px; border-radius: 4px; transition: background-color 0.2s;}
+        .emoji-picker span:hover { background-color: #4b5563; }
+        #messagesContainer { scrollbar-width: thin; scrollbar-color: #4b5563 #1f2937; }
+        #messageInput { background-color: #374151; color: #e0e0e0; border: 1px solid #4b5563; }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-zinc-900 text-zinc-300 flex items-center justify-center min-h-screen p-4">
+<body class="bg-zinc-900 text-zinc-300 flex justify-center h-screen p-4">
 
-    <div class="w-full max-w-3xl">
-
-        <!-- Main Menu Page -->
-        <div id="menu-page" class="page active">
-            <div class="text-center">
-                <h1 class="text-4xl md:text-5xl font-bold text-white">Decentralized Stream</h1>
-                <h2 class="text-4xl md:text-2xl font-bold text-zinc-400 mb-4">Powered by Streamr</h2>
-            </div>
-            
-            <div class="mt-10 bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8">
-                <div class="grid md:grid-cols-2 gap-6 text-center">
-                    <div class="flex flex-col items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-zinc-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                        <h3 class="text-xl font-bold text-white mb-4">Broadcast</h3>
-                        <button id="go-settings-btn" class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                            Start Broadcasting
-                        </button>
-                    </div>
-                    <div class="flex flex-col items-center">
-                       <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-zinc-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                        <h3 class="text-xl font-bold text-white mb-4">Watch</h3>
-                        <button id="go-watch-btn" class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                            Watch Stream
-                        </button>
-                    </div>
-                </div>
-                 <p id="menu-status" class="text-center text-zinc-500 text-sm mt-6">Connecting to the P2P network...</p>
-            </div>
-        </div>
+    <div id="main-container" class="w-full h-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
         
-        <!-- Broadcast Settings Page -->
-        <div id="settings-page" class="page">
-             <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-white">Broadcast Settings</h1>
-                <p class="text-zinc-400 mt-1">Fine-tune your stream for the best performance.</p>
-            </div>
-            <div class="bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8 space-y-4 divide-y divide-zinc-700/50 text-left max-w-md mx-auto">
-                
-                <div class="pt-2">
-                    <h3 class="text-sm font-medium text-zinc-300 mb-2">Source</h3>
-                    <div class="grid grid-cols-3 gap-2 rounded-lg bg-zinc-700 p-1">
-                        <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors bg-zinc-600 text-white" for="source-camera">Camera</label>
-                        <input type="radio" name="broadcast-source" id="source-camera" value="camera" class="sr-only" checked>
-                        
-                        <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors hover:bg-zinc-600/50" for="source-screen">Screen</label>
-                        <input type="radio" name="broadcast-source" id="source-screen" value="screen" class="sr-only">
-
-                        <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors hover:bg-zinc-600/50" for="source-tab">Browser Tab</label>
-                        <input type="radio" name="broadcast-source" id="source-tab" value="tab" class="sr-only">
+        <!-- Video Column -->
+        <div id="video-column" class="lg:col-span-5 w-full flex justify-center">
+             <div class="w-full max-w-3xl">
+                <!-- Main Menu Page -->
+                <div id="menu-page" class="page active">
+                    <div class="text-center">
+                        <h1 class="text-4xl md:text-5xl font-bold text-white">Decentralized Stream</h1>
+                        <h2 class="text-2xl font-bold text-zinc-400 mb-4">Powered by Streamr</h2>
                     </div>
-                </div>
-
-                <div id="input-devices-group" class="pt-4 space-y-4">
-                    <h3 class="text-sm font-medium text-zinc-300">Input Devices</h3>
-                    <div>
-                        <label for="videoSourceSelect" class="block mb-2 text-sm font-medium text-zinc-400">Camera</label>
-                        <select id="videoSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5 disabled:opacity-50" disabled></select>
-                    </div>
-                    <div>
-                        <label for="audioSourceSelect" class="block mb-2 text-sm font-medium text-zinc-400">Microphone</label>
-                        <select id="audioSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5 disabled:opacity-50" disabled></select>
-                        <canvas id="audio-meter-canvas" width="300" height="10" class="mt-2 w-full h-2 bg-zinc-700 rounded-full"></canvas>
-                    </div>
-                </div>
-                
-                <div id="video-quality-group" class="pt-4 space-y-4">
-                    <h3 class="text-sm font-medium text-zinc-300">Video Quality</h3>
-                    <div id="resolution-setting">
-                        <div class="flex justify-between items-center mb-2">
-                            <label for="resolutionSlider" class="text-sm font-medium text-zinc-400">Resolution</label>
-                            <span id="resolutionValue" class="text-sm font-mono text-zinc-400">720p</span>
-                        </div>
-                        <input id="resolutionSlider" type="range" min="0" max="2" value="1" step="1" class="disabled:opacity-50">
-                    </div>
-                     <div id="framerate-setting">
-                        <div class="flex justify-between items-center mb-2">
-                            <label for="framerateSlider" class="text-sm font-medium text-zinc-400">Frame Rate</label>
-                            <span id="framerateValue" class="text-sm font-mono text-zinc-400">30 fps</span>
-                        </div>
-                        <input id="framerateSlider" type="range" min="15" max="60" value="30" step="1" class="disabled:opacity-50">
-                    </div>
-                    <div>
-                        <div class="flex justify-between items-center mb-2">
-                            <label for="bitrateSlider" class="text-sm font-medium text-zinc-400">Video Bitrate</label>
-                            <span id="bitrateValue" class="text-sm font-mono text-zinc-400">2.0 Mbps</span>
-                        </div>
-                        <input id="bitrateSlider" type="range" min="500000" max="12000000" value="2000000" step="100000" class="disabled:opacity-50">
-                    </div>
-                </div>
-
-                <div id="audio-quality-group" class="pt-4 space-y-4">
-                     <h3 class="text-sm font-medium text-zinc-300">Audio Quality</h3>
-                     <div>
-                        <div class="flex justify-between items-center mb-2">
-                             <label for="audioQualitySlider" class="text-sm font-medium text-zinc-400">Quality</label>
-                             <span id="audioQualityValue" class="text-sm font-mono text-zinc-400">Balanced (64 Kb)</span>
-                        </div>
-                        <input id="audioQualitySlider" type="range" min="0" max="3" value="1" step="1" class="disabled:opacity-50">
-                    </div>
-                </div>
-                
-                <details id="advanced-settings-group" class="pt-2">
-                    <summary class="text-sm font-medium text-zinc-300">
-                        <span>Advanced Settings</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 summary-arrow text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                    </summary>
-                    <div class="space-y-4 pt-4">
-                        <div>
-                            <div class="flex justify-between items-center mb-2">
-                                <div class="tooltip-container">
-                                    <label for="performanceSlider" class="text-sm font-medium text-zinc-400">Performance</label>
-                                    <div class="tooltip-icon">
-                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
-                                    </div>
-                                    <span class="tooltip-text">'Lowest Latency' is faster for real-time interaction. 'Best Quality' prioritizes a clearer image, which might add a small delay.</span>
-                                </div>
-                                <span id="performanceValue" class="text-sm font-mono text-zinc-400">Lowest Latency</span>
+                    <div class="mt-10 bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8">
+                        <div class="grid md:grid-cols-2 gap-6 text-center">
+                            <div class="flex flex-col items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-zinc-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                <h3 class="text-xl font-bold text-white mb-4">Broadcast</h3>
+                                <button id="go-settings-btn" class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                    Start Broadcasting
+                                </button>
                             </div>
-                            <input id="performanceSlider" type="range" min="0" max="1" value="0" step="1" class="disabled:opacity-50">
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-2">
-                                <div class="tooltip-container">
-                                    <label for="keyframeIntervalSlider" class="text-sm font-medium text-zinc-400">Key Frame Interval</label>
-                                     <div class="tooltip-icon">
-                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
-                                    </div>
-                                    <span class="tooltip-text">How often a full video frame is sent. Shorter intervals can improve stream recovery on unstable connections but use more data.</span>
-                                </div>
-                                <span id="keyframeIntervalValue" class="text-sm font-mono text-zinc-400">2.0 s</span>
+                            <div class="flex flex-col items-center">
+                               <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-zinc-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                <h3 class="text-xl font-bold text-white mb-4">Watch</h3>
+                                <button id="go-watch-btn" class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                    Watch Stream
+                                </button>
                             </div>
-                            <input id="keyframeIntervalSlider" type="range" min="1000" max="10000" value="2000" step="500" class="disabled:opacity-50">
+                        </div>
+                         <p id="menu-status" class="text-center text-zinc-500 text-sm mt-6">Connecting to the P2P network...</p>
+                    </div>
+                </div>
+                
+                <!-- Broadcast Settings Page -->
+                <div id="settings-page" class="page">
+                     <div class="text-center mb-8">
+                        <h1 class="text-3xl font-bold text-white">Broadcast Settings</h1>
+                        <p class="text-zinc-400 mt-1">Fine-tune your stream for the best performance.</p>
+                    </div>
+                    <div class="bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8 space-y-4 divide-y divide-zinc-700/50 text-left max-w-md mx-auto">
+                        <div class="pt-2">
+                            <h3 class="text-sm font-medium text-zinc-300 mb-2">Source</h3>
+                            <div class="grid grid-cols-3 gap-2 rounded-lg bg-zinc-700 p-1">
+                                <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors bg-zinc-600 text-white" for="source-camera">Camera</label>
+                                <input type="radio" name="broadcast-source" id="source-camera" value="camera" class="sr-only" checked>
+                                <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors hover:bg-zinc-600/50" for="source-screen">Screen</label>
+                                <input type="radio" name="broadcast-source" id="source-screen" value="screen" class="sr-only">
+                                <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors hover:bg-zinc-600/50" for="source-tab">Tab</label>
+                                <input type="radio" name="broadcast-source" id="source-tab" value="tab" class="sr-only">
+                            </div>
+                        </div>
+                        <div id="input-devices-group" class="pt-4 space-y-4">
+                            <h3 class="text-sm font-medium text-zinc-300">Input Devices</h3>
+                            <div>
+                                <label for="videoSourceSelect" class="block mb-2 text-sm font-medium text-zinc-400">Camera</label>
+                                <select id="videoSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5 disabled:opacity-50" disabled></select>
+                            </div>
+                            <div>
+                                <label for="audioSourceSelect" class="block mb-2 text-sm font-medium text-zinc-400">Microphone</label>
+                                <select id="audioSourceSelect" class="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg focus:ring-zinc-500 focus:border-zinc-500 block w-full p-2.5 disabled:opacity-50" disabled></select>
+                                <canvas id="audio-meter-canvas" width="300" height="10" class="mt-2 w-full h-2 bg-zinc-700 rounded-full"></canvas>
+                            </div>
+                        </div>
+                        <div id="video-quality-group" class="pt-4 space-y-4">
+                            <h3 class="text-sm font-medium text-zinc-300">Video Quality</h3>
+                            <div id="resolution-setting">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label for="resolutionSlider" class="text-sm font-medium text-zinc-400">Resolution</label>
+                                    <span id="resolutionValue" class="text-sm font-mono text-zinc-400">720p</span>
+                                </div>
+                                <input id="resolutionSlider" type="range" min="0" max="2" value="1" step="1" class="disabled:opacity-50">
+                            </div>
+                             <div id="framerate-setting">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label for="framerateSlider" class="text-sm font-medium text-zinc-400">Frame Rate</label>
+                                    <span id="framerateValue" class="text-sm font-mono text-zinc-400">30 fps</span>
+                                </div>
+                                <input id="framerateSlider" type="range" min="15" max="60" value="30" step="1" class="disabled:opacity-50">
+                            </div>
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <label for="bitrateSlider" class="text-sm font-medium text-zinc-400">Video Bitrate</label>
+                                    <span id="bitrateValue" class="text-sm font-mono text-zinc-400">2.0 Mbps</span>
+                                </div>
+                                <input id="bitrateSlider" type="range" min="500000" max="12000000" value="2000000" step="100000" class="disabled:opacity-50">
+                            </div>
+                        </div>
+                        <div id="audio-quality-group" class="pt-4 space-y-4">
+                             <h3 class="text-sm font-medium text-zinc-300">Audio Quality</h3>
+                             <div>
+                                <div class="flex justify-between items-center mb-2">
+                                     <label for="audioQualitySlider" class="text-sm font-medium text-zinc-400">Quality</label>
+                                     <span id="audioQualityValue" class="text-sm font-mono text-zinc-400">Balanced (64 Kb)</span>
+                                </div>
+                                <input id="audioQualitySlider" type="range" min="0" max="3" value="1" step="1" class="disabled:opacity-50">
+                            </div>
+                        </div>
+                        <details id="advanced-settings-group" class="pt-2">
+                            <summary class="text-sm font-medium text-zinc-300">
+                                <span>Advanced Settings</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 summary-arrow text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </summary>
+                            <div class="space-y-4 pt-4">
+                                <div>
+                                    <div class="flex justify-between items-center mb-2">
+                                        <div class="tooltip-container">
+                                            <label for="performanceSlider" class="text-sm font-medium text-zinc-400">Performance</label>
+                                            <div class="tooltip-icon">
+                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                                            </div>
+                                            <span class="tooltip-text">'Lowest Latency' is faster for real-time interaction. 'Best Quality' prioritizes a clearer image, which might add a small delay.</span>
+                                        </div>
+                                        <span id="performanceValue" class="text-sm font-mono text-zinc-400">Lowest Latency</span>
+                                    </div>
+                                    <input id="performanceSlider" type="range" min="0" max="1" value="0" step="1" class="disabled:opacity-50">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between items-center mb-2">
+                                        <div class="tooltip-container">
+                                            <label for="keyframeIntervalSlider" class="text-sm font-medium text-zinc-400">Key Frame Interval</label>
+                                             <div class="tooltip-icon">
+                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                                            </div>
+                                            <span class="tooltip-text">How often a full video frame is sent. Shorter intervals can improve stream recovery on unstable connections but use more data.</span>
+                                        </div>
+                                        <span id="keyframeIntervalValue" class="text-sm font-mono text-zinc-400">2.0 s</span>
+                                    </div>
+                                    <input id="keyframeIntervalSlider" type="range" min="1000" max="10000" value="2000" step="500" class="disabled:opacity-50">
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                    <div class="mt-8 flex justify-center gap-4">
+                        <button id="back-to-menu-settings" class="bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Back</button>
+                        <button id="start-broadcast-btn" class="bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-2 px-5 rounded-lg transition-colors">Start Broadcasting</button>
+                    </div>
+                </div>
+
+                <!-- Broadcast Page -->
+                <div id="broadcast-page" class="page">
+                     <div class="text-center mb-6">
+                        <h1 class="text-2xl font-bold text-white">Broadcasting</h1>
+                        <div class="flex items-center justify-center gap-4 mt-1 text-zinc-400 text-sm">
+                            <div id="broadcast-status">...</div>
+                            <div id="viewer-count-broadcaster" class="flex items-center gap-1 hidden">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                                <span id="viewer-count-broadcaster-value">0</span>
+                            </div>
                         </div>
                     </div>
-                </details>
+                    <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
+                        <video id="localVideo" autoplay playsinline muted class="w-full h-auto bg-zinc-900 rounded-md camera-view"></video>
+                    </div>
+                    <button id="back-to-menu-broadcast" class="mt-8 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Stop and Go Back</button>
+                </div>
 
-            </div>
-            <div class="mt-8 flex justify-center gap-4">
-                <button id="back-to-menu-settings" class="bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Back</button>
-                <button id="start-broadcast-btn" class="bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-2 px-5 rounded-lg transition-colors">Start Broadcasting</button>
+                <!-- Watch Page -->
+                <div id="watch-page" class="page">
+                    <div class="text-center mb-6">
+                         <h1 class="text-2xl font-bold text-white">Watching Stream</h1>
+                         <div class="flex items-center justify-center gap-4 mt-1 text-zinc-400 text-sm">
+                            <div id="watch-status">...</div>
+                            <div id="viewer-count-watcher" class="flex items-center gap-1 hidden">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                                <span id="viewer-count-watcher-value">0</span>
+                            </div>
+                         </div>
+                    </div>
+                    <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
+                        <div class="relative group">
+                            <div id="canvas-wrapper" class="w-full bg-zinc-900 rounded-md overflow-hidden">
+                                <canvas id="remoteCanvas" class="w-full h-full block"></canvas>
+                            </div>
+                            <div class="absolute top-2 right-2 bg-zinc-900/50 backdrop-blur-sm rounded-full p-2">
+                                <span id="statusDot" class="status-dot dot-red" title="Disconnected"></span>
+                            </div>
+                             <div class="absolute bottom-4 left-4 right-4 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <button id="back-to-menu-watch" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Stop and Go Back">
+                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                                <button id="playPauseBtn" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Play/Pause">
+                                    <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white hidden" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                                    </svg>
+                                    <svg id="pauseIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                                <div class="flex items-center gap-2 w-24">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
+                                    </svg>
+                                    <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-full">
+                                </div>
+                                 <button id="fullscreen-btn" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Fullscreen">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m0 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5h-4m0 0v-4m0 4l-5-5" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex flex-col gap-4 px-2">
+                             <div class="space-y-2">
+                                <div class="flex justify-end items-center">
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="liveModeCheckbox" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 bg-zinc-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zinc-600"></div>
+                                        <span class="ml-3 text-sm font-medium text-zinc-300 flex items-center gap-2">
+                                            <svg id="direct-link-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                              <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd" />
+                                            </svg>
+                                            <svg id="direct-link-broken-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" viewBox="0 0 20 20" fill="currentColor">
+                                              <path fill-rule="evenodd" d="M12.293 7.293a1 1 0 011.414 0l2 2a1 1 0 010 1.414l-2 2a1 1 0 01-1.414-1.414L12.586 11H10a1 1 0 110-2h2.586l-.293-.293a1 1 0 010-1.414zM7.707 12.707a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414l2-2a1 1 0 111.414 1.414L7.414 9H10a1 1 0 110 2H7.414l.293.293a1 1 0 010 1.414zM4 10a1 1 0 011-1h4a1 1 0 110 2H5a1 1 0 01-1-1zm11 0a1 1 0 011-1h1a1 1 0 110 2h-1a1 1 0 01-1-1z" clip-rule="evenodd" />
+                                            </svg>
+                                            Direct Link
+                                        </span>
+                                    </label>
+                                </div>
+                                <div id="latency-controls" class="hidden">
+                                    <label for="bufferSlider" class="text-sm font-medium text-zinc-300">Latency vs Stability</label>
+                                    <div id="buffer-slider-container">
+                                        <input id="bufferSlider" type="range" min="100" max="3000" value="200" step="100">
+                                        <span id="bufferValue" class="text-sm font-mono text-zinc-400 text-center block mt-1">200 ms</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Broadcast Page -->
-        <div id="broadcast-page" class="page">
-             <div class="text-center mb-6">
-                <h1 class="text-3xl font-bold text-white">Broadcasting</h1>
-                <div class="flex items-center justify-center gap-4 mt-1 text-zinc-400 text-sm">
-                    <div id="broadcast-status">...</div>
-                    <div id="viewer-count-broadcaster" class="flex items-center gap-1 hidden">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
-                        <span id="viewer-count-broadcaster-value">0</span>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
-                <video id="localVideo" autoplay playsinline muted class="w-full h-auto bg-black rounded-md camera-view"></video>
-            </div>
-            <button id="back-to-menu-broadcast" class="mt-8 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Stop and Go Back</button>
-        </div>
-
-        <!-- Watch Page -->
-        <div id="watch-page" class="page">
-            <div class="text-center mb-6">
-                 <h1 class="text-3xl font-bold text-white">Watching Stream</h1>
-                 <div class="flex items-center justify-center gap-4 mt-1 text-zinc-400 text-sm">
-                    <div id="watch-status">...</div>
-                    <div id="viewer-count-watcher" class="flex items-center gap-1 hidden">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
-                        <span id="viewer-count-watcher-value">0</span>
-                    </div>
-                 </div>
-            </div>
-            <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
-                <div class="relative group">
-                    <div id="canvas-wrapper" class="w-full bg-black rounded-md overflow-hidden">
-                        <canvas id="remoteCanvas" class="w-full block"></canvas>
-                    </div>
-                    <div class="absolute top-2 right-2 bg-zinc-900/50 backdrop-blur-sm rounded-full p-2">
-                        <span id="statusDot" class="status-dot dot-red" title="Disconnected"></span>
-                    </div>
-                     <div class="absolute bottom-4 left-4 right-4 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <button id="back-to-menu-watch" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Stop and Go Back">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                            </svg>
+        <!-- Chat Column -->
+        <div id="chat-container" class="lg:col-span-2 w-full hidden">
+            <div class="bg-zinc-800 border border-zinc-700 w-full rounded-xl shadow-2xl flex flex-col">
+                <div class="p-4 flex flex-col flex-1 h-0">
+                    <div class="flex-1 mb-4 overflow-y-auto p-2 rounded-lg bg-zinc-900 flex flex-col" id="messagesContainer"></div>
+                    <div class="relative flex items-center mt-auto">
+                        <button id="emojiBtn" class="emoji-button">😀</button>
+                        <div id="emojiPicker" class="emoji-picker overflow-y-auto max-h-64"></div>
+                        <textarea id="messageInput" rows="1" placeholder="Write your message..." class="flex-1 py-2 px-4 pr-16 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                        <button id="sendBtn" class="send-button absolute right-2 top-1/2 -translate-y-1/2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" /></svg>
                         </button>
-
-                        <button id="playPauseBtn" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Play/Pause">
-                            <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white hidden" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-                            </svg>
-                            <svg id="pauseIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                            </svg>
-                        </button>
-
-                        <div class="flex items-center gap-2 w-24">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
-                            </svg>
-                            <input id="volume-slider" type="range" min="0" max="100" value="100" class="w-full">
-                        </div>
-                         <button id="fullscreen-btn" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Fullscreen">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m0 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5h-4m0 0v-4m0 4l-5-5" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-                <div class="mt-4 flex flex-col gap-4 px-2">
-                     <div class="space-y-2">
-                        <div class="flex justify-end items-center">
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="liveModeCheckbox" class="sr-only peer" checked>
-                                <div class="w-11 h-6 bg-zinc-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zinc-600"></div>
-                                <span class="ml-3 text-sm font-medium text-zinc-300 flex items-center gap-2">
-                                    <svg id="direct-link-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd" />
-                                    </svg>
-                                    <svg id="direct-link-broken-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fill-rule="evenodd" d="M12.293 7.293a1 1 0 011.414 0l2 2a1 1 0 010 1.414l-2 2a1 1 0 01-1.414-1.414L12.586 11H10a1 1 0 110-2h2.586l-.293-.293a1 1 0 010-1.414zM7.707 12.707a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414l2-2a1 1 0 111.414 1.414L7.414 9H10a1 1 0 110 2H7.414l.293.293a1 1 0 010 1.414zM4 10a1 1 0 011-1h4a1 1 0 110 2H5a1 1 0 01-1-1zm11 0a1 1 0 011-1h1a1 1 0 110 2h-1a1 1 0 01-1-1z" clip-rule="evenodd" />
-                                    </svg>
-                                    Direct Link
-                                </span>
-                            </label>
-                        </div>
-                        <div id="latency-controls" class="hidden">
-                            <label for="bufferSlider" class="text-sm font-medium text-zinc-300">Latency vs Stability</label>
-                            <div id="buffer-slider-container">
-                                <input id="bufferSlider" type="range" min="100" max="3000" value="200" step="100">
-                                <span id="bufferValue" class="text-sm font-mono text-zinc-400 text-center block mt-1">200 ms</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -351,12 +368,17 @@
     </div>
     
     <script>
+        // --- Stream Constants ---
         const STREAM_BASE = '0xd5a8024414f59cf0c453c35fc3655a31251645f6';
-        const VIDEO_STREAM_ID = `${STREAM_BASE}/app11`;
-        const AUDIO_STREAM_ID = `${STREAM_BASE}/app12`;
-        const PRESENCE_STREAM_ID = `${STREAM_BASE}/app8`;
-        
-        // --- UI Elements ---
+        const VIDEO_STREAM_ID = `${STREAM_BASE}/app9`;
+        const AUDIO_STREAM_ID = `${STREAM_BASE}/app4`;
+        const PRESENCE_STREAM_ID = `${STREAM_BASE}/app2`;
+        const CHAT_STREAM_ID = `${STREAM_BASE}/app1`;
+        const MAX_MESSAGES = 100;
+
+        // --- UI Elements (Video) ---
+        const mainContainer = document.getElementById('main-container');
+        const videoColumn = document.getElementById('video-column');
         const pages = {
             menu: document.getElementById('menu-page'),
             settings: document.getElementById('settings-page'),
@@ -371,7 +393,6 @@
             document.getElementById('back-to-menu-watch'),
             document.getElementById('back-to-menu-settings'),
         ];
-        
         const localVideo = document.getElementById('localVideo');
         const remoteCanvas = document.getElementById('remoteCanvas');
         const canvasWrapper = document.getElementById('canvas-wrapper');
@@ -383,13 +404,10 @@
         const playPauseBtn = document.getElementById('playPauseBtn');
         const playIcon = document.getElementById('playIcon');
         const pauseIcon = document.getElementById('pauseIcon');
-        
         const viewerCountBroadcaster = document.getElementById('viewer-count-broadcaster');
         const viewerCountBroadcasterValue = document.getElementById('viewer-count-broadcaster-value');
         const viewerCountWatcher = document.getElementById('viewer-count-watcher');
         const viewerCountWatcherValue = document.getElementById('viewer-count-watcher-value');
-
-        // Settings page elements
         const broadcastSourceRadios = document.querySelectorAll('input[name="broadcast-source"]');
         const inputDevicesGroup = document.getElementById('input-devices-group');
         const videoQualityGroup = document.getElementById('video-quality-group');
@@ -410,8 +428,6 @@
         const performanceValue = document.getElementById('performanceValue');
         const keyframeIntervalSlider = document.getElementById('keyframeIntervalSlider');
         const keyframeIntervalValue = document.getElementById('keyframeIntervalValue');
-        
-        // Watch page elements
         const volumeSlider = document.getElementById('volume-slider');
         const bufferSlider = document.getElementById('bufferSlider');
         const bufferValue = document.getElementById('bufferValue');
@@ -419,8 +435,30 @@
         const latencyControls = document.getElementById('latency-controls');
         const directLinkIcon = document.getElementById('direct-link-icon');
         const directLinkBrokenIcon = document.getElementById('direct-link-broken-icon');
-        
         const canvasContext = remoteCanvas.getContext('2d');
+
+        // --- UI Elements (Chat) ---
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const emojiBtn = document.getElementById('emojiBtn');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const emojiPicker = document.getElementById('emojiPicker');
+       const emojis = [
+            '😂', '😭', '❤️', '👍', '👎', '👏', '🔥', '💯', '🤔', '🙏', '🤯', '🥳', '😎',
+            '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😊', '😇', '🙂', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+            '🤩', '🤪', '😜', '😝', '😋', '😛', '🤑', '🤭', '🤫', '😶', '😐', '😑', '😏', '😒', '🙄', '😬', '🤥', '😌',
+            '😔', '😴', '🤤', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '😵', '🤯', '🤠', '😎', '🤓', '🧐', '😕',
+            '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😩', '😫', '😡', '😠', '🤬', '😈', '👿',
+            '💀', '☠️', '💩', '👻', '👽', '🤖', '👾', '🙈', '🙉', '🙊',
+            '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '👍', '👎', '✊', '🤛', '🤜', '👏', '🙌',
+            '💪', '✍️', '🙏', '🦶', '🦵', '👂', '👃', '👁️', '👀', '🧠', '👅', '👄',
+            '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦉', '🐛', '🦋', '🐢', '🐍', '🐙', '🦑', '🦞', '🦀', '🐠', '🐟', '🐡', '🦈', '🐳', '🐬', '🐾',
+            '🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥕', '🥔', '🌶️', '🌽', '🍄', '🥜', '🌰', '🍞', '🥐', '🥖', '🥨', '🥞', '🧇', '🧀', '🍗', '🍖', '🍣', '🍤', '🍙', '🍚', '🍜', '🍲', '🍝', '🍕', '🍔', '🍟', '🌭', '🌮', '🌯', '🥙', '🥪', '🍟', '🍡', '🍦', '🍩', '🍪', '🎂', '🍰', '🍫', '🍬', '🍭', '🍮',
+            '⚽', '🏀', '🏈', '⚾', '🥎', '🏐', '🏉', '🎾', '🥏', '🎳', '🏏', '🏑', '🏒', '🥍', '🏓', '🏸', '🥊', '🥋', '🥅', '⛳', '🎯', '🪁', '🎣', '🤿', '🎨', '🎬', '🎤', '🎧', '🎸', '🎹', '🎷', '🎺', '🎻', '🥁', '🎲', '♟️', '🎮', '🕹️',
+            '❤️', '🧡', '💛', '💚', '💙', '💜', '🤎', '🖤', '🤍', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💌', '💥', '💫', '🌟', '✨', '⚡', '🔥', '☄️', '💧', '🌊', '💦', '💧',
+            '🎈', '🎉', '🎊', '🎁', '🎀', '🪄', '🔔', '📢', '🔊', '📣', '📯', '🎶', '🎵', '🎼', '🎙️', '📱', '📞', '💻', '🖥️', '⌨️', '🖱️', '🔋', '🔌', '💡', '🔦', '💵', '💰', '💳', '💎'
+        ];
 
         // --- Constants and Mappings ---
         const resolutions = [ { text: '480p', value: '640x480' }, { text: '720p', value: '1280x720' }, { text: '1080p', value: '1920x1080' }];
@@ -433,33 +471,49 @@
 
         // --- State Variables ---
         let streamrClient;
-        let videoEncoder, audioEncoder;
-        let videoDecoder, audioDecoder;
-        let localStream;
-        let audioContext, gainNode;
-        let videoSubscription, audioSubscription, presenceSubscription;
+        let videoEncoder, audioEncoder, videoDecoder, audioDecoder;
+        let localStream, audioContext, gainNode;
+        let videoSubscription, audioSubscription, presenceSubscription, chatSubscription;
         let isBroadcasting = false, isViewing = false;
         let lastKeyFrameTimestamp = 0, lastChunkReceivedTimestamp = 0, streamHealthInterval = null;
         const STALE_STREAM_TIMEOUT_MS = 3000;
         let broadcastSourceType = 'camera';
-
-        // Audio Meter State
         let audioMeter = { context: null, stream: null, analyser: null, animationId: null };
-
-        // Presence state
         let currentUserId = null, viewers = new Map();
         let presenceHeartbeatInterval = null, broadcasterPresenceInterval = null;
-        const VIEWER_TIMEOUT_MS = 15000; // 15 seconds
-        const HEARTBEAT_INTERVAL_MS = 10000; // 10 seconds
-
-        // Viewer state
+        const VIEWER_TIMEOUT_MS = 15000, HEARTBEAT_INTERVAL_MS = 10000;
         let detailedWatchStatus = 'Looking for a broadcast...';
         let videoBuffer = [], audioBuffer = [];
         let isPlaying = false, isManuallyPaused = false;
         let playbackStartTime = 0, mediaStartTime = 0;
         let bufferTargetMs = 200, renderLoopId = null, isLiveMode = true, nextAudioScheduleTime = 0;
-        let lastRenderedFrame = null;
-        let currentStreamConfigId = null; 
+        let lastRenderedFrame = null, currentStreamConfigId = null; 
+        let myPublisherId = '';
+
+        const userColors = new Map();
+        const colorPalette = [
+            '#FF8A65', '#4FC3F7', '#AED581', '#F06292',
+            '#BA68C8', '#FFD54F', '#4DB6AC', '#7986CB'
+        ];
+
+        function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash |= 0; // Convert to 32bit integer
+            }
+            return Math.abs(hash);
+        }
+
+        function getUserColor(publisherId) {
+            if (!userColors.has(publisherId)) {
+                const hash = simpleHash(publisherId);
+                const color = colorPalette[hash % colorPalette.length];
+                userColors.set(publisherId, color);
+            }
+            return userColors.get(publisherId);
+        }
 
         // --- Helper Functions ---
         function arrayBufferToBase64(buffer) {
@@ -472,23 +526,56 @@
             for (let i = 0; i < len; i++) { bytes[i] = binary_string.charCodeAt(i); }
             return bytes.buffer;
         }
+
+        function alignAndMatchHeight() {
+            const chatBox = document.querySelector('#chat-container > div');
+            if (!chatBox || chatContainer.classList.contains('hidden')) {
+                return;
+            }
+
+            const activePlayerPage = document.querySelector('#watch-page.active, #broadcast-page.active');
+            if (activePlayerPage) {
+                const videoTitle = activePlayerPage.querySelector('.text-center');
+                const videoBox = activePlayerPage.querySelector('.bg-zinc-800');
+                
+                if (videoTitle && videoBox) {
+                    // Align Tops by adding padding to the chat container to match the video title's offset
+                    const titleHeight = videoTitle.offsetHeight;
+                    const titleMarginBottom = parseInt(window.getComputedStyle(videoTitle).marginBottom);
+                    const totalOffset = titleHeight + titleMarginBottom;
+                    chatContainer.style.paddingTop = `${totalOffset}px`;
+
+                    // Match Heights of the boxes
+                    const videoBoxHeight = videoBox.offsetHeight;
+                    chatBox.style.height = `${videoBoxHeight}px`;
+                }
+            }
+        }
+
+
         function showPage(pageName) {
             Object.values(pages).forEach(p => p.classList.remove('active'));
             if(pages[pageName]) pages[pageName].classList.add('active');
-            if (pageName !== 'settings') stopAudioMeter();
-        }
-        function insertIntoSortedBuffer(buffer, item) {
-            let low = 0;
-            let high = buffer.length;
-            while (low < high) {
-                const mid = (low + high) >>> 1;
-                if (buffer[mid].timestamp < item.timestamp) {
-                    low = mid + 1;
-                } else {
-                    high = mid;
-                }
+            
+            if (pageName === 'broadcast' || pageName === 'watch') {
+                videoColumn.classList.remove('lg:col-span-5');
+                videoColumn.classList.add('lg:col-span-3');
+                mainContainer.classList.remove('items-center');
+                mainContainer.classList.add('items-start');
+                chatContainer.classList.remove('hidden');
+                setTimeout(alignAndMatchHeight, 50);
+            } else {
+                videoColumn.classList.remove('lg:col-span-3');
+                videoColumn.classList.add('lg:col-span-5');
+                mainContainer.classList.remove('items-start');
+                mainContainer.classList.add('items-center');
+                chatContainer.classList.add('hidden');
+                chatContainer.style.paddingTop = '0px';
+                const chatBox = document.querySelector('#chat-container > div');
+                if (chatBox) chatBox.style.height = null; 
             }
-            buffer.splice(low, 0, item);
+
+            if (pageName !== 'settings') stopAudioMeter();
         }
 
         // --- Audio Meter Logic ---
@@ -500,10 +587,8 @@
             ctx.clearRect(0, 0, audioMeterCanvas.width, audioMeterCanvas.height);
             audioMeter = { context: null, stream: null, analyser: null, animationId: null };
         }
-
         async function startAudioMeter(deviceId) {
-            stopAudioMeter();
-            if (!deviceId) return;
+            stopAudioMeter(); if (!deviceId) return;
             try {
                 audioMeter.stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { deviceId: { exact: deviceId }, autoGainControl: false, echoCancellation: true, noiseSuppression: true } 
@@ -513,174 +598,86 @@
                 audioMeter.analyser = audioMeter.context.createAnalyser();
                 audioMeter.analyser.fftSize = 256;
                 source.connect(audioMeter.analyser);
-                
-                const bufferLength = audioMeter.analyser.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
+                const bufferLength = audioMeter.analyser.frequencyBinCount, dataArray = new Uint8Array(bufferLength);
                 const canvasCtx = audioMeterCanvas.getContext('2d');
-                
                 function draw() {
                     audioMeter.animationId = requestAnimationFrame(draw);
                     audioMeter.analyser.getByteFrequencyData(dataArray);
-                    
-                    let sum = 0;
-                    for(let i = 0; i < bufferLength; i++) sum += dataArray[i];
-                    const average = sum / bufferLength;
-                    
-                    const width = (average / 128) * audioMeterCanvas.width;
-                    
-                    canvasCtx.clearRect(0, 0, audioMeterCanvas.width, audioMeterCanvas.height);
-                    
-                    const gradient = canvasCtx.createLinearGradient(0, 0, audioMeterCanvas.width, 0);
-                    gradient.addColorStop(0, '#4ade80'); // green
-                    gradient.addColorStop(0.7, '#facc15'); // yellow
-                    gradient.addColorStop(1, '#f87171'); // red
-                    canvasCtx.fillStyle = gradient;
-                    
-                    canvasCtx.fillRect(0, 0, width, audioMeterCanvas.height);
-                };
-                draw();
-            } catch (err) {
-                console.error("Error starting audio meter:", err);
-            }
+                    let sum = 0; for(let i=0; i<bufferLength; i++) sum+=dataArray[i];
+                    const average = sum/bufferLength, width=(average/128)*audioMeterCanvas.width;
+                    canvasCtx.clearRect(0,0,audioMeterCanvas.width,audioMeterCanvas.height);
+                    const gradient = canvasCtx.createLinearGradient(0,0,audioMeterCanvas.width,0);
+                    gradient.addColorStop(0,'#4ade80'); gradient.addColorStop(0.7,'#facc15'); gradient.addColorStop(1,'#f87171');
+                    canvasCtx.fillStyle = gradient; canvasCtx.fillRect(0,0,width,audioMeterCanvas.height);
+                }; draw();
+            } catch (err) { console.error("Error starting audio meter:", err); }
         }
         
         // --- Settings Page Logic ---
         async function populateDeviceLists() {
-            // Request permissions separately to avoid failing if one device type is missing.
-            // This also helps populate device labels for enumeration.
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                stream.getTracks().forEach(track => track.stop());
-            } catch (err) {
-                console.warn("Could not get video device access:", err.message);
-            }
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => track.stop());
-            } catch (err) {
-                console.warn("Could not get audio device access:", err.message);
-            }
-
-            // Now, enumerate devices with permissions hopefully granted.
+            try { await navigator.mediaDevices.getUserMedia({ video: true }).then(s=>s.getTracks().forEach(t=>t.stop())); } catch (err) { console.warn("Could not get video device access:", err.message); }
+            try { await navigator.mediaDevices.getUserMedia({ audio: true }).then(s=>s.getTracks().forEach(t=>t.stop())); } catch (err) { console.warn("Could not get audio device access:", err.message); }
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                videoSourceSelect.innerHTML = ''; 
-                audioSourceSelect.innerHTML = '';
+                videoSourceSelect.innerHTML = ''; audioSourceSelect.innerHTML = '';
                 let hasVideo = false, hasAudio = false;
-
                 devices.forEach(device => {
-                    // Skip output devices or devices without a proper label/ID
                     if (!device.label || !device.deviceId || device.kind === 'audiooutput') return; 
-                    
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    if (device.kind === 'videoinput') {
-                        option.text = device.label || `Camera ${videoSourceSelect.length + 1}`;
-                        videoSourceSelect.appendChild(option); 
-                        hasVideo = true;
-                    } else if (device.kind === 'audioinput') {
-                        option.text = device.label || `Microphone ${audioSourceSelect.length + 1}`;
-                        audioSourceSelect.appendChild(option); 
-                        hasAudio = true;
-                    }
+                    const option = document.createElement('option'); option.value = device.deviceId;
+                    if (device.kind === 'videoinput') { option.text = device.label || `Camera ${videoSourceSelect.length + 1}`; videoSourceSelect.appendChild(option); hasVideo = true; }
+                    else if (device.kind === 'audioinput') { option.text = device.label || `Microphone ${audioSourceSelect.length + 1}`; audioSourceSelect.appendChild(option); hasAudio = true; }
                 });
-
-                // Update UI based on what was found
-                videoSourceSelect.disabled = !hasVideo; 
-                audioSourceSelect.disabled = !hasAudio;
-                audioQualitySlider.disabled = !hasAudio;
-                
-                // Only disable the start button if the current mode is 'camera' AND no camera is found.
-                if (broadcastSourceType === 'camera') {
-                    startBroadcastBtn.disabled = !hasVideo;
-                } else {
-                    startBroadcastBtn.disabled = false;
-                }
-                
-                if (hasAudio) {
-                    startAudioMeter(audioSourceSelect.value);
-                } else {
-                    stopAudioMeter();
-                }
-                
-            } catch (err) {
-                // This catch is for the enumerateDevices call, which is less likely to fail.
-                alert(`Error enumerating devices: ${err.message}.`);
-                showPage('menu');
-            }
+                videoSourceSelect.disabled = !hasVideo; audioSourceSelect.disabled = !hasAudio; audioQualitySlider.disabled = !hasAudio;
+                if (broadcastSourceType === 'camera') { startBroadcastBtn.disabled = !hasVideo; } else { startBroadcastBtn.disabled = false; }
+                if (hasAudio) { startAudioMeter(audioSourceSelect.value); } else { stopAudioMeter(); }
+            } catch (err) { alert(`Error enumerating devices: ${err.message}.`); showPage('menu'); }
         }
         
-        // --- Event Listeners for Settings ---
-        audioSourceSelect.addEventListener('change', () => startAudioMeter(audioSourceSelect.value));
-        resolutionSlider.addEventListener('input', e => { resolutionValue.textContent = resolutions[e.target.value].text; });
-        bitrateSlider.addEventListener('input', e => { bitrateValue.textContent = `${(e.target.value / 1000000).toFixed(1)} Mbps`; });
-        framerateSlider.addEventListener('input', e => { framerateValue.textContent = `${e.target.value} fps`; });
-        audioQualitySlider.addEventListener('input', e => { audioQualityValue.textContent = audioQualities[e.target.value].text; });
-        const performanceModes = ['Lowest Latency', 'Best Quality'];
-        performanceSlider.addEventListener('input', e => { performanceValue.textContent = performanceModes[e.target.value]; });
-        keyframeIntervalSlider.addEventListener('input', e => { keyframeIntervalValue.textContent = `${(e.target.value / 1000).toFixed(1)} s`; });
-        
-        broadcastSourceRadios.forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                broadcastSourceType = e.target.value;
-                document.querySelectorAll('label[for^="source-"]').forEach(label => {
-                    label.classList.remove('bg-zinc-600', 'text-white');
-                    label.classList.add('hover:bg-zinc-600/50');
-                });
-                const selectedLabel = document.querySelector(`label[for="${e.target.id}"]`);
-                selectedLabel.classList.add('bg-zinc-600', 'text-white');
-                selectedLabel.classList.remove('hover:bg-zinc-600/50');
+        // --- Chat Logic ---
+        function addMessageToUI(message, metadata) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message-entry text-sm';
 
-                const isCamera = broadcastSourceType === 'camera';
-                inputDevicesGroup.style.display = isCamera ? 'block' : 'none';
-                resolutionSetting.style.display = isCamera ? 'block' : 'none';
-                framerateSetting.style.display = isCamera ? 'block' : 'none';
-                
-                if (isCamera) {
-                    populateDeviceLists();
-                } else {
-                    startBroadcastBtn.disabled = false;
-                    stopAudioMeter();
-                }
-            });
-        });
+            const userSpan = document.createElement('span');
+            userSpan.className = 'chat-username';
+            userSpan.textContent = `${metadata.publisherId.slice(0, 12)}:`;
+            userSpan.style.color = getUserColor(metadata.publisherId);
+            
+            const textSpan = document.createElement('span');
+            textSpan.className = 'chat-message-text';
+            textSpan.textContent = message.text; // Use textContent for security
 
-        // --- Event Listeners for Watch Page ---
-        volumeSlider.addEventListener('input', e => { if (gainNode) gainNode.gain.setValueAtTime(e.target.value / 100, audioContext.currentTime); });
-        bufferSlider.addEventListener('input', e => {
-            bufferTargetMs = parseInt(e.target.value, 10);
-            bufferValue.textContent = `${bufferTargetMs} ms`;
-            if (isPlaying) {
-                const vDur = (videoBuffer.length > 1) ? (videoBuffer[videoBuffer.length - 1].timestamp - videoBuffer[0].timestamp) / 1000 : 0;
-                if (bufferTargetMs > vDur) {
-                    isPlaying = false;
-                    watchStatus.textContent = "Buffering...";
-                    statusDot.className = 'status-dot dot-yellow-flashing';
-                }
+            msgDiv.appendChild(userSpan);
+            msgDiv.appendChild(textSpan);
+
+            messagesContainer.appendChild(msgDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            if(messagesContainer.children.length > MAX_MESSAGES){ 
+                messagesContainer.removeChild(messagesContainer.firstChild);
             }
-        });
-        liveModeCheckbox.addEventListener('change', e => {
-            isLiveMode = e.target.checked;
-            latencyControls.classList.toggle('hidden', isLiveMode);
-            
-            // Update icon state
-            directLinkIcon.classList.toggle('hidden', !isLiveMode);
-            directLinkBrokenIcon.classList.toggle('hidden', isLiveMode);
-
-            // Force a full stream reset on the next configuration packet
-            currentStreamConfigId = null; 
-            
-            videoBuffer.forEach(f => f.close()); videoBuffer = [];
-            audioBuffer.forEach(c => c.close()); audioBuffer = [];
-            lastRenderedFrame?.close();
-            lastRenderedFrame = null;
-            isPlaying = false; 
-            isManuallyPaused = false;
-            updatePlayPauseButton();
-            
-            statusDot.className = 'status-dot dot-yellow';
-            watchStatus.textContent = isLiveMode ? 'Switching to Direct Link...' : 'Buffering...';
-        });
+        }
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            if(!text || !streamrClient) return;
+            try {
+                await streamrClient.publish(CHAT_STREAM_ID, { text });
+                messageInput.value = ''; messageInput.focus();
+            } catch(error){
+                console.error("Failed to send message:", error);
+                alert('Failed to send: ' + error.message);
+            }
+        }
+        async function startChat() {
+            if (chatSubscription) return;
+            try {
+                chatSubscription = await streamrClient.subscribe(CHAT_STREAM_ID, (message, metadata) => addMessageToUI(message, metadata));
+            } catch(error){
+                console.error("Error starting chat:", error);
+            }
+        }
+        async function stopChat() {
+            if (chatSubscription) { await chatSubscription.unsubscribe(); chatSubscription = null; }
+        }
 
         // --- Core Logic ---
         document.addEventListener('DOMContentLoaded', async () => {
@@ -688,13 +685,20 @@
                 menuStatus.textContent = 'Connecting to the P2P network...';
                 streamrClient = new StreamrClient();
                 await streamrClient.connect();
+                myPublisherId = await streamrClient.getAddress();
                 menuStatus.textContent = 'Ready. Choose an option.';
-             //   goSettingsBtn.disabled = false; 
-                goWatchBtn.disabled = false;
+            //    goSettingsBtn.disabled = false; goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
                 menuStatus.textContent = `Error connecting: ${error.message}. Please refresh.`;
             }
+            // Setup Emoji picker
+            emojis.forEach(e => {
+                const span = document.createElement('span'); span.textContent = e;
+                span.addEventListener('click', () => { messageInput.value += e; messageInput.focus(); emojiPicker.style.display = 'none'; });
+                emojiPicker.appendChild(span);
+            });
+            window.addEventListener('resize', alignAndMatchHeight);
         });
 
         // --- Broadcaster ---
@@ -702,137 +706,91 @@
             stopAudioMeter();
             if (!window.VideoEncoder || !window.AudioEncoder) return alert('Error: WebCodecs API not supported in this browser.');
             try {
-                const audioConstraints = { 
-                    autoGainControl: false, 
-                    echoCancellation: true, 
-                    noiseSuppression: true 
-                };
-
+                const audioConstraints = { autoGainControl: false, echoCancellation: true, noiseSuppression: true };
                 if (broadcastSourceType === 'camera') {
-                    const vDev = videoSourceSelect.value, aDev = audioSourceSelect.value;
-                    const res = resolutions[resolutionSlider.value].value;
-                    const [w, h] = res.split('x').map(Number);
-                    const fps = parseInt(framerateSlider.value, 10);
-                    const constraints = { 
-                        video: { deviceId:{exact:vDev}, width:w, height:h, frameRate:{ideal:fps, max:fps} }, 
-                        audio: { deviceId:{exact:aDev}, ...audioConstraints } 
-                    };
-                    localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    localVideo.classList.add('camera-view');
+                    const res = resolutions[resolutionSlider.value].value; const [w,h] = res.split('x').map(Number); const fps = parseInt(framerateSlider.value, 10);
+                    const constraints = { video: { deviceId:{exact:videoSourceSelect.value}, width:w, height:h, frameRate:{ideal:fps, max:fps} }, audio: { deviceId:{exact:audioSourceSelect.value}, ...audioConstraints } };
+                    localStream = await navigator.mediaDevices.getUserMedia(constraints); localVideo.classList.add('camera-view');
                 } else {
-                    localStream = await navigator.mediaDevices.getDisplayMedia({ 
-                        video: { cursor:"always" }, 
-                        audio: audioConstraints 
-                    });
-                    localVideo.classList.remove('camera-view');
-                    localStream.getVideoTracks()[0].onended = goBackToMenu;
+                    localStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor:"always" }, audio: audioConstraints });
+                    localVideo.classList.remove('camera-view'); localStream.getVideoTracks()[0].onended = goBackToMenu;
                 }
-
                 const hasVideo = localStream.getVideoTracks().length > 0, hasAudio = localStream.getAudioTracks().length > 0;
                 if(!hasVideo && !hasAudio) return alert("Selected source has no video or audio.");
-                
-                showPage('broadcast');
-                isBroadcasting = true;
-                startBroadcasterPresence();
-                localVideo.srcObject = localStream;
+                showPage('broadcast'); isBroadcasting = true; startBroadcasterPresence(); await startChat(); localVideo.srcObject = localStream;
                 let vSettings, statusText = `Broadcasting ${broadcastSourceType} `;
-
                 if(hasVideo) {
-                    const trackSettings = localStream.getVideoTracks()[0].getSettings();
-                    const bitrate = parseInt(bitrateSlider.value, 10);
-                    const perf = (performanceSlider.value === '0') ? 'realtime' : 'quality';
+                    const trackSettings = localStream.getVideoTracks()[0].getSettings(); const bitrate = parseInt(bitrateSlider.value, 10); const perf = (performanceSlider.value === '0') ? 'realtime' : 'quality';
                     vSettings = { width:trackSettings.width, height:trackSettings.height, framerate:trackSettings.frameRate, bitrate };
                     const vConfig = { codec:'avc1.64002A', width:vSettings.width, height:vSettings.height, bitrate:vSettings.bitrate, framerate:vSettings.framerate, hardwareAcceleration:'prefer-hardware', latencyMode:perf };
-                    if (!(await VideoEncoder.isConfigSupported(vConfig)).supported) {
-                        alert(`Video settings not supported.`); return goBackToMenu();
-                    }
+                    if (!(await VideoEncoder.isConfigSupported(vConfig)).supported) { alert(`Video settings not supported.`); return goBackToMenu(); }
                     videoEncoder = new VideoEncoder({ output:(c,m) => handleVideoEncoderOutput(c,m,vSettings), error:e => console.error(`VErr: ${e.message}`) });
-                    await videoEncoder.configure(vConfig);
-                    readVideoFrames(new MediaStreamTrackProcessor({track:localStream.getVideoTracks()[0]}).readable.getReader());
-                    statusText += `(${vSettings.width}x${vSettings.height}@${Math.round(vSettings.framerate)}fps, ${(vSettings.bitrate / 1000000).toFixed(1)} Mbps)`;
+                    await videoEncoder.configure(vConfig); readVideoFrames(new MediaStreamTrackProcessor({track:localStream.getVideoTracks()[0]}).readable.getReader());
+                    statusText += `(${vSettings.width}x${vSettings.height}@${Math.round(vSettings.framerate)}fps, ${(vSettings.bitrate/1000000).toFixed(1)} Mbps)`;
                 }
                 if(hasAudio) {
-                    const aBitrate = audioQualities[audioQualitySlider.value].bitrate;
-                    const aQualityTxt = audioQualities[audioQualitySlider.value].text;
+                    const aBitrate = audioQualities[audioQualitySlider.value].bitrate; const aQualityTxt = audioQualities[audioQualitySlider.value].text;
                     const aConfig = { codec:'opus', sampleRate:48000, numberOfChannels:1, bitrate:aBitrate };
                     audioEncoder = new AudioEncoder({ output:handleAudioEncoderOutput, error:e => console.error(`AErr: ${e.message}`) });
-                    await audioEncoder.configure(aConfig);
-                    readAudioFrames(new MediaStreamTrackProcessor({track:localStream.getAudioTracks()[0]}).readable.getReader());
+                    await audioEncoder.configure(aConfig); readAudioFrames(new MediaStreamTrackProcessor({track:localStream.getAudioTracks()[0]}).readable.getReader());
                     if(hasVideo) statusText += " & "; statusText += `Audio (${aQualityTxt})`;
                 }
                 broadcastStatus.textContent = statusText;
             } catch (err) {
                 console.error(`Broadcast start error: ${err.message}`);
                 if(err.name === 'NotAllowedError' || err.name === 'NotFoundError') showPage('settings');
-                else { alert(`Error starting broadcast: ${err.message}`); goBackToMenu(); }
+                else { alert(`Broadcast start error: ${err.message}`); goBackToMenu(); }
             }
         }
-        
         async function handleVideoEncoderOutput(chunk, metadata, streamSettings) {
-            if (!isBroadcasting) return;
-            const data = new Uint8Array(chunk.byteLength);
-            chunk.copyTo(data);
+            if (!isBroadcasting) return; const data = new Uint8Array(chunk.byteLength); chunk.copyTo(data);
             const msg = { type:chunk.type, timestamp:chunk.timestamp, duration:chunk.duration, data_base64:arrayBufferToBase64(data.buffer) };
             if (chunk.type === 'key' && metadata.decoderConfig) {
-                const config = {...metadata.decoderConfig};
-                if (config.description) config.description = Array.from(new Uint8Array(config.description));
-                config.streamSettings = streamSettings;
-                msg.config = config;
+                const config = {...metadata.decoderConfig}; if (config.description) config.description = Array.from(new Uint8Array(config.description));
+                config.streamSettings = streamSettings; msg.config = config;
             }
             await streamrClient.publish(VIDEO_STREAM_ID, msg);
         }
         async function handleAudioEncoderOutput(chunk) {
-            if (!isBroadcasting) return;
-            const data = new Uint8Array(chunk.byteLength);
-            chunk.copyTo(data);
+            if (!isBroadcasting) return; const data = new Uint8Array(chunk.byteLength); chunk.copyTo(data);
             const msg = { timestamp:chunk.timestamp, duration:chunk.duration, data_base64:arrayBufferToBase64(data.buffer) };
             await streamrClient.publish(AUDIO_STREAM_ID, msg);
         }
         async function readVideoFrames(reader) {
             const interval = parseInt(keyframeIntervalSlider.value, 10);
             while (isBroadcasting) {
-                const { value: frame, done } = await reader.read().catch(() => ({done:true}));
-                if (done || !isBroadcasting) break;
-                const keyFrame = (Date.now() - lastKeyFrameTimestamp) > interval;
-                if(keyFrame) lastKeyFrameTimestamp = Date.now();
-                if(videoEncoder?.state === 'configured') videoEncoder.encode(frame, {keyFrame});
-                frame.close();
+                const { value: frame, done } = await reader.read().catch(() => ({done:true})); if (done || !isBroadcasting) break;
+                const keyFrame = (Date.now() - lastKeyFrameTimestamp) > interval; if(keyFrame) lastKeyFrameTimestamp = Date.now();
+                if(videoEncoder?.state === 'configured') videoEncoder.encode(frame, {keyFrame}); frame.close();
             }
         }
         async function readAudioFrames(reader) {
             while (isBroadcasting) {
-                const { value: frame, done } = await reader.read().catch(() => ({done:true}));
-                if (done || !isBroadcasting) break;
-                if(audioEncoder?.state === 'configured') audioEncoder.encode(frame);
-                frame.close();
+                const { value: frame, done } = await reader.read().catch(() => ({done:true})); if (done || !isBroadcasting) break;
+                if(audioEncoder?.state === 'configured') audioEncoder.encode(frame); frame.close();
             }
         }
         async function stopBroadcast() {
             isBroadcasting = false; stopBroadcasterPresence();
             localStream?.getTracks().forEach(t => t.stop());
-            if (videoEncoder?.state !== 'closed') videoEncoder.close();
-            if (audioEncoder?.state !== 'closed') audioEncoder.close();
+            if (videoEncoder?.state !== 'closed') videoEncoder.close(); if (audioEncoder?.state !== 'closed') audioEncoder.close();
             localVideo.srcObject = null;
         }
 
         // --- Viewer ---
         function checkStreamHealth() {
             if (isViewing && lastChunkReceivedTimestamp > 0 && (Date.now() - lastChunkReceivedTimestamp > STALE_STREAM_TIMEOUT_MS)) {
-                if (!statusDot.classList.contains('dot-yellow-flashing')) {
-                    statusDot.className = 'status-dot dot-yellow-flashing'; statusDot.title = 'Connection unstable';
-                    watchStatus.textContent = 'Buffering...'; isPlaying = false;
-                }
+                if (!statusDot.classList.contains('dot-yellow-flashing')) { statusDot.className = 'status-dot dot-yellow-flashing'; statusDot.title = 'Unstable connection'; watchStatus.textContent = 'Buffering...'; isPlaying = false; }
             }
         }
         const renderLoop = () => {
             if (!isViewing) return;
             if (!isLiveMode && !isManuallyPaused) {
                 if (!isPlaying) {
-                    const vDur = (videoBuffer.length > 1) ? (videoBuffer[videoBuffer.length - 1].timestamp - videoBuffer[0].timestamp) / 1000 : 0;
-                    const aDur = (audioBuffer.length > 1) ? (audioBuffer[audioBuffer.length - 1].timestamp - audioBuffer[0].timestamp) / 1000 : 0;
+                    const vDur = (videoBuffer.length > 1) ? (videoBuffer[videoBuffer.length-1].timestamp - videoBuffer[0].timestamp)/1000 : 0;
+                    const aDur = (audioBuffer.length > 1) ? (audioBuffer[audioBuffer.length-1].timestamp - audioBuffer[0].timestamp)/1000 : 0;
                     if (vDur >= bufferTargetMs && aDur >= bufferTargetMs) {
-                        mediaStartTime = audioBuffer[0].timestamp;
-                        while (videoBuffer.length > 0 && videoBuffer[0].timestamp < mediaStartTime) videoBuffer.shift().close();
+                        mediaStartTime = audioBuffer[0].timestamp; while (videoBuffer.length > 0 && videoBuffer[0].timestamp < mediaStartTime) videoBuffer.shift().close();
                         if (videoBuffer.length === 0) return requestAnimationFrame(renderLoop);
                         isPlaying = true; playbackStartTime = audioContext.currentTime; nextAudioScheduleTime = playbackStartTime;
                         watchStatus.textContent = detailedWatchStatus; statusDot.className = 'status-dot dot-green';
@@ -843,58 +801,28 @@
                         const audioData = audioBuffer.shift();
                         try {
                             const buffer = audioContext.createBuffer(audioData.numberOfChannels, audioData.numberOfFrames, audioData.sampleRate);
-                            for (let i = 0; i < audioData.numberOfChannels; i++) {
-                                const chanData = new Float32Array(audioData.numberOfFrames);
-                                audioData.copyTo(chanData, {planeIndex: i});
-                                buffer.copyToChannel(chanData, i);
-                            }
-                            const source = audioContext.createBufferSource();
-                            source.buffer = buffer; source.connect(gainNode); source.start(nextAudioScheduleTime);
-                            nextAudioScheduleTime += buffer.duration;
-                        } catch (err) { console.error("Error scheduling audio:", err); } 
-                        finally { audioData.close(); }
+                            for (let i = 0; i < audioData.numberOfChannels; i++) { const chanData=new Float32Array(audioData.numberOfFrames); audioData.copyTo(chanData, {planeIndex: i}); buffer.copyToChannel(chanData, i); }
+                            const source = audioContext.createBufferSource(); source.buffer = buffer; source.connect(gainNode); source.start(nextAudioScheduleTime); nextAudioScheduleTime += buffer.duration;
+                        } catch (err) { console.error("Error scheduling audio:", err); } finally { audioData.close(); }
                     }
                     const mediaTimeUs = mediaStartTime + ((audioContext.currentTime - playbackStartTime) * 1000000);
-                    
-                    let nextFrameToRender = null;
-                    while (videoBuffer.length > 0 && videoBuffer[0].timestamp <= mediaTimeUs) {
-                        lastRenderedFrame?.close();
-                        lastRenderedFrame = nextFrameToRender;
-                        nextFrameToRender = videoBuffer.shift();
-                    }
-
-                    if (nextFrameToRender) {
-                        canvasContext.drawImage(nextFrameToRender, 0, 0, remoteCanvas.width, remoteCanvas.height);
-                        lastRenderedFrame?.close();
-                        lastRenderedFrame = nextFrameToRender;
-                    } else if (lastRenderedFrame) {
-                        canvasContext.drawImage(lastRenderedFrame, 0, 0, remoteCanvas.width, remoteCanvas.height);
-                    }
-                    
-                    if (videoBuffer.length === 0 && audioBuffer.length === 0 && audioContext.currentTime > nextAudioScheduleTime) {
-                        isPlaying = false; watchStatus.textContent = "Buffering..."; statusDot.className = 'status-dot dot-yellow-flashing';
-                    }
+                    let nextFrameToRender = null; while (videoBuffer.length > 0 && videoBuffer[0].timestamp <= mediaTimeUs) { lastRenderedFrame?.close(); lastRenderedFrame=nextFrameToRender; nextFrameToRender=videoBuffer.shift(); }
+                    if (nextFrameToRender) { canvasContext.drawImage(nextFrameToRender, 0, 0, remoteCanvas.width, remoteCanvas.height); lastRenderedFrame?.close(); lastRenderedFrame = nextFrameToRender; }
+                    else if (lastRenderedFrame) { canvasContext.drawImage(lastRenderedFrame, 0, 0, remoteCanvas.width, remoteCanvas.height); }
+                    if (videoBuffer.length === 0 && audioBuffer.length === 0 && audioContext.currentTime > nextAudioScheduleTime) { isPlaying=false; watchStatus.textContent="Buffering..."; statusDot.className='status-dot dot-yellow-flashing'; }
                 }
             }
             requestAnimationFrame(renderLoop);
         };
         async function joinStream() {
             if (!window.VideoDecoder || !window.AudioDecoder) return alert('Error: WebCodecs API not supported.');
-            showPage('watch'); isViewing = true; startViewerPresence();
-            watchStatus.textContent = detailedWatchStatus;
-            statusDot.className = 'status-dot dot-yellow'; statusDot.title = 'Connecting...';
-            streamHealthInterval = setInterval(checkStreamHealth, 1000);
-            renderLoopId = requestAnimationFrame(renderLoop);
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            await audioContext.resume(); nextAudioScheduleTime = audioContext.currentTime;
-            gainNode = audioContext.createGain();
-            gainNode.gain.setValueAtTime(volumeSlider.value / 100, audioContext.currentTime);
-            gainNode.connect(audioContext.destination);
+            showPage('watch'); isViewing = true; startViewerPresence(); await startChat();
+            watchStatus.textContent = detailedWatchStatus; statusDot.className = 'status-dot dot-yellow'; statusDot.title = 'Connecting...';
+            streamHealthInterval = setInterval(checkStreamHealth, 1000); renderLoopId = requestAnimationFrame(renderLoop);
+            audioContext = new (window.AudioContext || window.webkitAudioContext)(); await audioContext.resume(); nextAudioScheduleTime = audioContext.currentTime;
+            gainNode = audioContext.createGain(); gainNode.gain.setValueAtTime(volumeSlider.value / 100, audioContext.currentTime); gainNode.connect(audioContext.destination);
             videoDecoder = new VideoDecoder({
-                output: f => {
-                    if (isLiveMode && !isManuallyPaused) { canvasContext.drawImage(f, 0, 0, remoteCanvas.width, remoteCanvas.height); f.close(); } 
-                    else { insertIntoSortedBuffer(videoBuffer, f); }
-                },
+                output: f => { if (isLiveMode && !isManuallyPaused) { canvasContext.drawImage(f, 0, 0, remoteCanvas.width, remoteCanvas.height); f.close(); } else { insertIntoSortedBuffer(videoBuffer, f); } },
                 error: e => console.error(`VDecErr: ${e.message}`)
             });
             audioDecoder = new AudioDecoder({
@@ -902,132 +830,65 @@
                     if (isLiveMode && !isManuallyPaused) {
                         try {
                             const buffer = audioContext.createBuffer(d.numberOfChannels, d.numberOfFrames, d.sampleRate);
-                            for (let i = 0; i < d.numberOfChannels; i++) {
-                                const chanData = new Float32Array(d.numberOfFrames);
-                                d.copyTo(chanData, {planeIndex: i});
-                                buffer.copyToChannel(chanData, i);
-                            }
-                            const source = audioContext.createBufferSource();
-                            source.buffer = buffer; source.connect(gainNode);
-                            const scheduleTime = Math.max(audioContext.currentTime, nextAudioScheduleTime);
-                            source.start(scheduleTime);
-                            nextAudioScheduleTime = scheduleTime + buffer.duration;
-                        } catch (err) { console.error("Error playing audio:", err); } 
-                        finally { d.close(); }
+                            for (let i = 0; i < d.numberOfChannels; i++) { const chanData=new Float32Array(d.numberOfFrames); d.copyTo(chanData,{planeIndex:i}); buffer.copyToChannel(chanData,i); }
+                            const source = audioContext.createBufferSource(); source.buffer = buffer; source.connect(gainNode);
+                            const scheduleTime = Math.max(audioContext.currentTime, nextAudioScheduleTime); source.start(scheduleTime); nextAudioScheduleTime = scheduleTime + buffer.duration;
+                        } catch (err) { console.error("Error playing audio:", err); } finally { d.close(); }
                     } else { insertIntoSortedBuffer(audioBuffer, d); }
-                },
-                error: e => console.error(`ADecErr: ${e.message}`)
+                }, error: e => console.error(`ADecErr: ${e.message}`)
             });
             const handleMessage = () => {
                 lastChunkReceivedTimestamp = Date.now();
-                if (statusDot.classList.contains('dot-yellow-flashing') || statusDot.classList.contains('dot-yellow')) {
-                     statusDot.className = 'status-dot dot-green'; statusDot.title = 'Connected';
-                     watchStatus.textContent = detailedWatchStatus;
-                }
+                if (statusDot.classList.contains('dot-yellow-flashing') || statusDot.classList.contains('dot-yellow')) { statusDot.className = 'status-dot dot-green'; statusDot.title = 'Connected'; watchStatus.textContent = detailedWatchStatus; }
             };
             videoSubscription = await streamrClient.subscribe(VIDEO_STREAM_ID, msg => {
-                if (!isViewing) return; 
-                handleMessage();
-
-                if (msg.config) {
-                    const newConfig = msg.config;
-                    const newConfigId = `${newConfig.codedWidth}x${newConfig.codedHeight}`;
-                    
-                    const s = newConfig.streamSettings;
-                    detailedWatchStatus = s ? `Receiving: ${s.width}x${s.height} @ ${Math.round(s.framerate)}fps, ~${(s.bitrate / 1000000).toFixed(1)}Mbps` : `Receiving: ${newConfig.codedWidth}x${newConfig.codedHeight}`;
-                    watchStatus.textContent = detailedWatchStatus;
-
-                    // Reconfigure only if the stream settings have ACTUALLY changed.
-                    if (newConfigId !== currentStreamConfigId) {
-                        currentStreamConfigId = newConfigId;
-
-                        // Re-configure the video decoder with the new settings
-                        if (newConfig.description) newConfig.description = new Uint8Array(newConfig.description).buffer;
-                        videoDecoder.configure(newConfig);
-
-                        // Clear all buffers to discard old data from the previous stream
-                        videoBuffer.forEach(f => f.close()); 
-                        audioBuffer.forEach(c => c.close());
-                        lastRenderedFrame?.close();
-                        videoBuffer = []; 
-                        audioBuffer = [];
-                        lastRenderedFrame = null;
-                        isPlaying = false;
-
-                        // Reset audio synchronization
-                        if(audioDecoder.state === 'configured') audioDecoder.reset();
-                        if(audioContext) nextAudioScheduleTime = audioContext.currentTime;
-
-                        // Update UI elements
-                        remoteCanvas.width = newConfig.codedWidth; 
-                        remoteCanvas.height = newConfig.codedHeight;
-                        canvasWrapper.style.aspectRatio = `${newConfig.codedWidth} / ${newConfig.codedHeight}`;
-                    }
-                }
-                
-                if (videoDecoder.state === 'configured') {
-                    const chunk = new EncodedVideoChunk({ type:msg.type, timestamp:msg.timestamp, duration:msg.duration, data:base64ToArrayBuffer(msg.data_base64) });
-                    try {
-                        videoDecoder.decode(chunk);
-                    } catch (e) {
-                        console.error("Error decoding video chunk:", e);
-                    }
-                }
-            });
-
-            audioSubscription = await streamrClient.subscribe(AUDIO_STREAM_ID, msg => {
                 if (!isViewing) return; handleMessage();
-                if (audioDecoder.state === 'unconfigured') audioDecoder.configure({ codec:'opus', sampleRate:48000, numberOfChannels:1 });
-                const chunk = new EncodedAudioChunk({ type:'key', timestamp:msg.timestamp, duration:msg.duration, data:base64ToArrayBuffer(msg.data_base64) });
-                if(audioDecoder.state === 'configured') audioDecoder.decode(chunk);
+                if (msg.config) {
+                    const newConfig = msg.config, newConfigId = `${newConfig.codedWidth}x${newConfig.codedHeight}`;
+                    const s = newConfig.streamSettings;
+                    detailedWatchStatus = s ? `Receiving: ${s.width}x${s.height} @ ${Math.round(s.framerate)}fps, ~${(s.bitrate / 1000000).toFixed(1)}Mbps` : `Receiving: ${newConfig.codedWidth}x${newConfig.codedHeight}`; watchStatus.textContent = detailedWatchStatus;
+                    if (newConfigId !== currentStreamConfigId) {
+                        currentStreamConfigId = newConfigId; if (newConfig.description) newConfig.description = new Uint8Array(newConfig.description).buffer;
+                        videoDecoder.configure(newConfig); videoBuffer.forEach(f=>f.close()); audioBuffer.forEach(c=>c.close()); lastRenderedFrame?.close(); videoBuffer=[]; audioBuffer=[]; lastRenderedFrame=null; isPlaying=false;
+                        if(audioDecoder.state === 'configured') audioDecoder.reset(); if(audioContext) nextAudioScheduleTime = audioContext.currentTime;
+                        remoteCanvas.width = newConfig.codedWidth; remoteCanvas.height = newConfig.codedHeight; canvasWrapper.style.aspectRatio = `${newConfig.codedWidth} / ${newConfig.codedHeight}`;
+                    }
+                }
+                if (videoDecoder.state === 'configured') { try { videoDecoder.decode(new EncodedVideoChunk({ type:msg.type, timestamp:msg.timestamp, duration:msg.duration, data:base64ToArrayBuffer(msg.data_base64) })); } catch (e) { console.error("Error decoding video chunk:", e); } }
+            });
+            audioSubscription = await streamrClient.subscribe(AUDIO_STREAM_ID, msg => {
+                if (!isViewing) return; handleMessage(); if (audioDecoder.state === 'unconfigured') audioDecoder.configure({ codec:'opus', sampleRate:48000, numberOfChannels:1 });
+                if(audioDecoder.state === 'configured') audioDecoder.decode(new EncodedAudioChunk({ type:'key', timestamp:msg.timestamp, duration:msg.duration, data:base64ToArrayBuffer(msg.data_base64) }));
             });
         }
         async function stopViewing() {
-            isViewing = false; stopViewerPresence(true);
-            if(renderLoopId) cancelAnimationFrame(renderLoopId);
-            
-            videoBuffer.forEach(f => f.close()); 
-            audioBuffer.forEach(c => c.close());
-            lastRenderedFrame?.close();
-            videoBuffer = []; 
-            audioBuffer = [];
-            lastRenderedFrame = null;
-            canvasWrapper.style.aspectRatio = '';
-            currentStreamConfigId = null;
-
-            isPlaying = false; isManuallyPaused = false;
-            if (streamHealthInterval) clearInterval(streamHealthInterval);
-            lastChunkReceivedTimestamp = 0;
-            statusDot.className = 'status-dot dot-red'; statusDot.title = 'Disconnected';
+            isViewing = false; stopViewerPresence(true); if(renderLoopId) cancelAnimationFrame(renderLoopId);
+            videoBuffer.forEach(f=>f.close()); audioBuffer.forEach(c=>c.close()); lastRenderedFrame?.close();
+            videoBuffer=[]; audioBuffer=[]; lastRenderedFrame=null; canvasWrapper.style.aspectRatio = ''; currentStreamConfigId=null;
+            isPlaying = false; isManuallyPaused = false; if (streamHealthInterval) clearInterval(streamHealthInterval);
+            lastChunkReceivedTimestamp = 0; statusDot.className = 'status-dot dot-red'; statusDot.title = 'Disconnected';
             detailedWatchStatus = 'Looking for a broadcast...';
-            if (videoSubscription) await videoSubscription.unsubscribe();
-            if (audioSubscription) await audioSubscription.unsubscribe();
-            if (videoDecoder?.state !== 'closed') videoDecoder.close();
-            if (audioDecoder?.state !== 'closed') audioDecoder.close();
+            if (videoSubscription) await videoSubscription.unsubscribe(); if (audioSubscription) await audioSubscription.unsubscribe();
+            if (videoDecoder?.state !== 'closed') videoDecoder.close(); if (audioDecoder?.state !== 'closed') audioDecoder.close();
             if(audioContext?.state !== 'closed') await audioContext.close();
         }
+
 
         // --- Presence Logic ---
         function updateViewerCountUI(count) {
             viewerCountBroadcasterValue.textContent = count; viewerCountWatcherValue.textContent = count;
-            viewerCountBroadcaster.classList.toggle('hidden', count < 0);
-            viewerCountWatcher.classList.toggle('hidden', count < 0);
+            viewerCountBroadcaster.classList.toggle('hidden', count < 0); viewerCountWatcher.classList.toggle('hidden', count < 0);
         }
         async function startBroadcasterPresence() {
-            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, msg => {
-                if(msg.userId) { if(msg.type==='join'||msg.type==='heartbeat') viewers.set(msg.userId, Date.now()); else if (msg.type==='leave') viewers.delete(msg.userId); }
-            });
+            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, msg => { if(msg.userId) { if(msg.type==='join'||msg.type==='heartbeat') viewers.set(msg.userId, Date.now()); else if (msg.type==='leave') viewers.delete(msg.userId); } });
             broadcasterPresenceInterval = setInterval(async () => {
-                const now = Date.now();
-                for (const [id, seen] of viewers.entries()) if (now-seen > VIEWER_TIMEOUT_MS) viewers.delete(id);
-                updateViewerCountUI(viewers.size);
-                await streamrClient.publish(PRESENCE_STREAM_ID, { type:'viewer_count_update', count:viewers.size });
+                const now = Date.now(); for (const [id, seen] of viewers.entries()) if (now-seen > VIEWER_TIMEOUT_MS) viewers.delete(id);
+                updateViewerCountUI(viewers.size); await streamrClient.publish(PRESENCE_STREAM_ID, { type:'viewer_count_update', count:viewers.size });
             }, 5000);
         }
         function stopBroadcasterPresence() {
              if (broadcasterPresenceInterval) clearInterval(broadcasterPresenceInterval);
-             if (presenceSubscription) presenceSubscription.unsubscribe();
-             viewers.clear(); updateViewerCountUI(-1);
+             if (presenceSubscription) presenceSubscription.unsubscribe(); viewers.clear(); updateViewerCountUI(-1);
         }
         async function startViewerPresence() {
             currentUserId = `viewer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -1036,48 +897,62 @@
             presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, msg => { if(msg.type==='viewer_count_update') updateViewerCountUI(msg.count); });
         }
         function stopViewerPresence(sendLeave = false) {
-            if (presenceHeartbeatInterval) clearInterval(presenceHeartbeatInterval);
-            if (presenceSubscription) presenceSubscription.unsubscribe();
+            if (presenceHeartbeatInterval) clearInterval(presenceHeartbeatInterval); if (presenceSubscription) presenceSubscription.unsubscribe();
             if(sendLeave && currentUserId) streamrClient.publish(PRESENCE_STREAM_ID, { type:'leave', userId:currentUserId });
             currentUserId = null; updateViewerCountUI(-1);
         }
 
-        function updatePlayPauseButton() {
-            playIcon.classList.toggle('hidden', !isManuallyPaused);
-            pauseIcon.classList.toggle('hidden', isManuallyPaused);
-        }
-        
         // --- Navigation and Cleanup ---
         async function goBackToMenu() {
             if (isBroadcasting) await stopBroadcast();
             if (isViewing) await stopViewing();
+            await stopChat();
             showPage('menu');
         }
-        function handleFullscreen() {
-            if (document.fullscreenElement) document.exitFullscreen();
-            else canvasWrapper.requestFullscreen().catch(err => alert(`Fullscreen Error: ${err.message}`));
-        }
-        
-        goSettingsBtn.onclick = () => {
-            document.getElementById('source-camera').dispatchEvent(new Event('change'));
-            showPage('settings');
-        };
+
+        // --- Event Listeners ---
+        goSettingsBtn.onclick = () => { document.getElementById('source-camera').dispatchEvent(new Event('change')); showPage('settings'); };
         goWatchBtn.onclick = joinStream;
         startBroadcastBtn.onclick = startBroadcast;
         backBtns.forEach(btn => btn.onclick = goBackToMenu);
-        fullscreenBtn.onclick = handleFullscreen;
-        playPauseBtn.onclick = () => {
-            isManuallyPaused = !isManuallyPaused;
-            updatePlayPauseButton();
-            if (audioContext) {
-                if (isManuallyPaused) audioContext.suspend();
-                else audioContext.resume();
-            }
-        };
+        fullscreenBtn.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else canvasWrapper.requestFullscreen().catch(err => alert(`Fullscreen Error: ${err.message}`)); };
+        playPauseBtn.onclick = () => { isManuallyPaused = !isManuallyPaused; playIcon.classList.toggle('hidden', !isManuallyPaused); pauseIcon.classList.toggle('hidden', isManuallyPaused); if (audioContext) { if (isManuallyPaused) audioContext.suspend(); else audioContext.resume(); } };
+        audioSourceSelect.addEventListener('change', () => startAudioMeter(audioSourceSelect.value));
+        resolutionSlider.addEventListener('input', e => { resolutionValue.textContent = resolutions[e.target.value].text; });
+        bitrateSlider.addEventListener('input', e => { bitrateValue.textContent = `${(e.target.value / 1000000).toFixed(1)} Mbps`; });
+        framerateSlider.addEventListener('input', e => { framerateValue.textContent = `${e.target.value} fps`; });
+        audioQualitySlider.addEventListener('input', e => { audioQualityValue.textContent = audioQualities[e.target.value].text; });
+        const performanceModes = ['Lowest Latency', 'Best Quality'];
+        performanceSlider.addEventListener('input', e => { performanceValue.textContent = performanceModes[e.target.value]; });
+        keyframeIntervalSlider.addEventListener('input', e => { keyframeIntervalValue.textContent = `${(e.target.value / 1000).toFixed(1)} s`; });
+        broadcastSourceRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                broadcastSourceType = e.target.value;
+                document.querySelectorAll('label[for^="source-"]').forEach(label => { label.classList.remove('bg-zinc-600', 'text-white'); label.classList.add('hover:bg-zinc-600/50'); });
+                const selectedLabel = document.querySelector(`label[for="${e.target.id}"]`); selectedLabel.classList.add('bg-zinc-600', 'text-white'); selectedLabel.classList.remove('hover:bg-zinc-600/50');
+                const isCamera = broadcastSourceType === 'camera';
+                inputDevicesGroup.style.display = isCamera ? 'block' : 'none'; resolutionSetting.style.display = isCamera ? 'block' : 'none'; framerateSetting.style.display = isCamera ? 'block' : 'none';
+                if (isCamera) { populateDeviceLists(); } else { startBroadcastBtn.disabled = false; stopAudioMeter(); }
+            });
+        });
+        volumeSlider.addEventListener('input', e => { if (gainNode) gainNode.gain.setValueAtTime(e.target.value / 100, audioContext.currentTime); });
+        bufferSlider.addEventListener('input', e => {
+            bufferTargetMs = parseInt(e.target.value, 10); bufferValue.textContent = `${bufferTargetMs} ms`;
+            if (isPlaying) { const vDur = (videoBuffer.length > 1) ? (videoBuffer[videoBuffer.length - 1].timestamp - videoBuffer[0].timestamp) / 1000 : 0; if (bufferTargetMs > vDur) { isPlaying = false; watchStatus.textContent = "Buffering..."; statusDot.className = 'status-dot dot-yellow-flashing'; } }
+        });
+        liveModeCheckbox.addEventListener('change', e => {
+            isLiveMode = e.target.checked; latencyControls.classList.toggle('hidden', isLiveMode); directLinkIcon.classList.toggle('hidden', !isLiveMode); directLinkBrokenIcon.classList.toggle('hidden', isLiveMode);
+            currentStreamConfigId = null; videoBuffer.forEach(f => f.close()); videoBuffer = []; audioBuffer.forEach(c => c.close()); audioBuffer = []; lastRenderedFrame?.close(); lastRenderedFrame = null;
+            isPlaying = false; isManuallyPaused = false; playIcon.classList.toggle('hidden', !isManuallyPaused); pauseIcon.classList.toggle('hidden', isManuallyPaused);
+            statusDot.className = 'status-dot dot-yellow'; watchStatus.textContent = isLiveMode ? 'Switching to Direct Link...' : 'Buffering...';
+        });
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
+        emojiBtn.addEventListener('click', (e) => { e.stopPropagation(); emojiPicker.style.display = emojiPicker.style.display === 'flex' ? 'none' : 'flex'; });
+        document.addEventListener('click', (e) => { if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) { emojiPicker.style.display = 'none'; } });
 
         window.addEventListener('beforeunload', () => { if(isViewing && currentUserId) streamrClient.publish(PRESENCE_STREAM_ID, { type:'leave', userId:currentUserId }); });
     </script>
 </body>
 </html>
-
 

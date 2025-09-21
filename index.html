@@ -6,6 +6,10 @@
     <title>Streamr - P2P Video and Chat</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Ethers.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" type="application/javascript"></script>
+    <!-- DOMPurify for security -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.11/purify.min.js"></script>
     <!-- Streamr Client SDK (Latest Version) -->
     <script src="https://unpkg.com/@streamr/sdk@latest/dist/streamr-sdk.web.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -110,6 +114,25 @@
         .emoji-picker span:hover { background-color: #4b5563; }
         #messagesContainer { scrollbar-width: thin; scrollbar-color: #4b5563 #1f2937; }
         #messageInput { background-color: #374151; color: #e0e0e0; border: 1px solid #4b5563; }
+        
+        /* Spinner for login */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #ffffff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Collapsible arrow rotation */
+        #toggle-latency-arrow.open {
+            transform: rotate(180deg);
+        }
     </style>
 </head>
 <body class="bg-zinc-900 text-zinc-300 flex justify-center h-screen p-4">
@@ -155,13 +178,11 @@
                     <div class="bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8 space-y-4 divide-y divide-zinc-700/50 text-left max-w-md mx-auto">
                         <div class="pt-2">
                             <h3 class="text-sm font-medium text-zinc-300 mb-2">Source</h3>
-                            <div class="grid grid-cols-3 gap-2 rounded-lg bg-zinc-700 p-1">
+                            <div class="grid grid-cols-2 gap-2 rounded-lg bg-zinc-700 p-1">
                                 <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors bg-zinc-600 text-white" for="source-camera">Camera</label>
                                 <input type="radio" name="broadcast-source" id="source-camera" value="camera" class="sr-only" checked>
                                 <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors hover:bg-zinc-600/50" for="source-screen">Screen</label>
                                 <input type="radio" name="broadcast-source" id="source-screen" value="screen" class="sr-only">
-                                <label class="text-center text-sm py-2 rounded-md cursor-pointer transition-colors hover:bg-zinc-600/50" for="source-tab">Tab</label>
-                                <input type="radio" name="broadcast-source" id="source-tab" value="tab" class="sr-only">
                             </div>
                         </div>
                         <div id="input-devices-group" class="pt-4 space-y-4">
@@ -247,7 +268,8 @@
                             </div>
                         </details>
                     </div>
-                    <div class="mt-8 flex justify-center gap-4">
+                    <p id="settings-status" class="text-center text-red-400 text-sm mt-4 min-h-[1.25rem]"></p>
+                    <div class="mt-4 flex justify-center gap-4">
                         <button id="back-to-menu-settings" class="bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Back</button>
                         <button id="start-broadcast-btn" class="bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-2 px-5 rounded-lg transition-colors">Start Broadcasting</button>
                     </div>
@@ -255,35 +277,51 @@
 
                 <!-- Broadcast Page -->
                 <div id="broadcast-page" class="page">
-                     <div class="text-center mb-6">
-                        <h1 class="text-2xl font-bold text-white">Broadcasting</h1>
-                        <div class="flex items-center justify-center gap-4 mt-1 text-zinc-400 text-sm">
-                            <div id="broadcast-status">...</div>
-                            <div id="viewer-count-broadcaster" class="flex items-center gap-1 hidden">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
-                                <span id="viewer-count-broadcaster-value">0</span>
+                     <h1 class="text-2xl font-bold text-white text-center mb-4">Broadcasting</h1>
+                     <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
+                        <div class="flex items-center justify-between text-zinc-400 text-sm mb-4">
+                            <!-- Left side: User ID -->
+                            <div class="flex items-center gap-2">
+                                 <span id="broadcaster-user-id" class="text-xs truncate"></span>
+                                 <button id="nicknameBtnBroadcast" title="Set Nickname" class="text-zinc-400 hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <!-- Right side: Status -->
+                            <div class="flex items-center gap-4">
+                                <div id="broadcast-status">...</div>
+                                <div id="viewer-count-broadcaster" class="flex items-center gap-1 hidden">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                                    <span id="viewer-count-broadcaster-value">0</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
                         <video id="localVideo" autoplay playsinline muted class="w-full h-auto bg-zinc-900 rounded-md camera-view"></video>
                     </div>
-                    <button id="back-to-menu-broadcast" class="mt-8 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Stop and Go Back</button>
+                    <div class="w-full flex justify-center">
+                        <button id="back-to-menu-broadcast" class="mt-8 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Stop and Go Back</button>
+                    </div>
                 </div>
 
                 <!-- Watch Page -->
                 <div id="watch-page" class="page">
-                    <div class="text-center mb-6">
-                         <h1 class="text-2xl font-bold text-white">Watching Stream</h1>
-                         <div class="flex items-center justify-center gap-4 mt-1 text-zinc-400 text-sm">
+                    <!-- Player Header: Contains all metadata about the stream -->
+                    <div id="player-header" class="text-center mb-6">
+                        <h1 class="text-2xl font-bold text-white">Watching Stream</h1>
+                        <div id="broadcaster-info-on-watch-page" class="text-zinc-400 text-sm mt-2 hidden"></div>
+                        <div class="flex items-center justify-center gap-4 mt-1 text-zinc-400 text-sm">
                             <div id="watch-status">...</div>
                             <div id="viewer-count-watcher" class="flex items-center gap-1 hidden">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
                                 <span id="viewer-count-watcher-value">0</span>
                             </div>
-                         </div>
+                        </div>
                     </div>
-                    <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
+
+                    <!-- Player Container: Wraps the video canvas and its overlay controls -->
+                    <div id="player-container" class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
                         <div class="relative group">
                             <div id="canvas-wrapper" class="w-full bg-zinc-900 rounded-md overflow-hidden">
                                 <canvas id="remoteCanvas" class="w-full h-full block"></canvas>
@@ -318,29 +356,25 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="mt-4 flex flex-col gap-4 px-2">
-                             <div class="space-y-2">
-                                <div class="flex justify-end items-center">
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="liveModeCheckbox" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-zinc-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zinc-600"></div>
-                                        <span class="ml-3 text-sm font-medium text-zinc-300 flex items-center gap-2">
-                                            <svg id="direct-link-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                              <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd" />
-                                            </svg>
-                                            <svg id="direct-link-broken-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" viewBox="0 0 20 20" fill="currentColor">
-                                              <path fill-rule="evenodd" d="M12.293 7.293a1 1 0 011.414 0l2 2a1 1 0 010 1.414l-2 2a1 1 0 01-1.414-1.414L12.586 11H10a1 1 0 110-2h2.586l-.293-.293a1 1 0 010-1.414zM7.707 12.707a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414l2-2a1 1 0 111.414 1.414L7.414 9H10a1 1 0 110 2H7.414l.293.293a1 1 0 010 1.414zM4 10a1 1 0 011-1h4a1 1 0 110 2H5a1 1 0 01-1-1zm11 0a1 1 0 011-1h1a1 1 0 110 2h-1a1 1 0 01-1-1z" clip-rule="evenodd" />
-                                            </svg>
-                                            Direct Link
-                                        </span>
-                                    </label>
-                                </div>
-                                <div id="latency-controls" class="hidden">
-                                    <label for="bufferSlider" class="text-sm font-medium text-zinc-300">Latency vs Stability</label>
-                                    <div id="buffer-slider-container">
-                                        <input id="bufferSlider" type="range" min="100" max="3000" value="200" step="100">
-                                        <span id="bufferValue" class="text-sm font-mono text-zinc-400 text-center block mt-1">200 ms</span>
+                    </div>
+                    
+                    <!-- Player Footer: Contains external controls like the buffer slider -->
+                    <div id="player-footer" class="mt-4 flex flex-col items-center gap-2 px-2">
+                         <button id="toggle-latency-controls-btn" class="p-2 rounded-full hover:bg-zinc-700 transition-colors">
+                            <svg id="toggle-latency-arrow" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div id="latency-controls-collapsible" class="w-full hidden">
+                            <div class="space-y-2">
+                                <div id="latency-controls">
+                                    <label for="bufferSlider" class="text-sm font-medium text-zinc-300 text-center block mb-2">Playback Buffer</label>
+                                    <div id="buffer-slider-container" class="flex items-center gap-3">
+                                        <span class="text-xs text-zinc-400">Fastest</span>
+                                        <input id="bufferSlider" type="range" min="150" max="3000" value="150" step="50">
+                                        <span class="text-xs text-zinc-400">Smoothest</span>
                                     </div>
+                                    <span id="bufferValue" class="text-sm font-mono text-zinc-400 text-center block mt-1">150 ms (Lowest Latency)</span>
                                 </div>
                             </div>
                         </div>
@@ -353,6 +387,14 @@
         <div id="chat-container" class="lg:col-span-2 w-full hidden">
             <div class="bg-zinc-800 border border-zinc-700 w-full rounded-xl shadow-2xl flex flex-col">
                 <div class="p-4 flex flex-col flex-1 h-0">
+                    <div id="chat-header" class="flex justify-between items-center pb-2 mb-2 border-b border-zinc-700">
+                        <span id="chat-user-id" class="text-xs text-zinc-400 truncate"></span>
+                        <button id="nicknameBtn" title="Set Nickname" class="text-zinc-400 hover:text-white transition-colors">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
                     <div class="flex-1 mb-4 overflow-y-auto p-2 rounded-lg bg-zinc-900 flex flex-col" id="messagesContainer"></div>
                     <div class="relative flex items-center mt-auto">
                         <button id="emojiBtn" class="emoji-button">😀</button>
@@ -366,94 +408,76 @@
             </div>
         </div>
     </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-zinc-900 flex items-center justify-center p-4 z-50">
+        <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-8 max-w-sm w-full text-zinc-300 text-center shadow-2xl">
+            <div id="loginContent">
+                <h2 class="text-2xl font-bold mb-4 text-white">Welcome to Decentralized Stream</h2>
+                <p class="mb-6">For a persistent identity, connect your wallet. Otherwise, you can continue as a guest.</p>
+                <button id="connectWalletBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors mb-4 flex items-center justify-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                    Connect Wallet
+                </button>
+                <button id="guestBtn" class="w-full bg-zinc-600 hover:bg-zinc-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                    Continue as Guest
+                </button>
+            </div>
+            <div id="loadingContent" class="hidden">
+                 <div class="flex justify-center items-center mb-4">
+                    <div class="spinner"></div>
+                </div>
+                <p class="text-lg">Connecting...</p>
+                <p id="loading-instructions" class="text-sm text-zinc-400 mt-2"></p>
+            </div>
+        </div>
+    </div>
     
+    <!-- Nickname Modal -->
+    <div id="nicknameModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-zinc-800 rounded-lg p-8 max-w-sm w-full text-zinc-300 border border-zinc-700">
+            <h2 class="text-2xl font-bold mb-4 text-white">Set Your Nickname</h2>
+            <p class="mb-4">This will be displayed to other users in the chat.</p>
+            <input type="text" id="nicknameInput" class="w-full bg-zinc-700 border border-zinc-600 rounded-lg p-2 mb-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your nickname..." maxlength="20">
+            
+            <div class="flex items-center gap-4">
+                <button id="saveNicknameBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors" title="Save Nickname">
+                    Save
+                </button>
+                <button id="resetNicknameBtn" class="w-full bg-zinc-600 hover:bg-zinc-700 text-white font-bold py-2 px-4 rounded-lg transition-colors" title="Reset to ID">
+                    Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- Stream Constants ---
         const STREAM_BASE = '0xd5a8024414f59cf0c453c35fc3655a31251645f6';
-        const VIDEO_STREAM_ID = `${STREAM_BASE}/app9`;
-        const AUDIO_STREAM_ID = `${STREAM_BASE}/app4`;
-        const PRESENCE_STREAM_ID = `${STREAM_BASE}/app2`;
-        const CHAT_STREAM_ID = `${STREAM_BASE}/app1`;
+        const VIDEO_STREAM_ID = `${STREAM_BASE}/video1`;
+        const AUDIO_STREAM_ID = `${STREAM_BASE}/audio1`;
+        const PRESENCE_STREAM_ID = `${STREAM_BASE}/app11`;
+        const CHAT_STREAM_ID = `${STREAM_BASE}/app12`;
         const MAX_MESSAGES = 100;
+        const LIVE_BUFFER_TARGET_MS = 250; // Increased for audio stability
 
-        // --- UI Elements (Video) ---
-        const mainContainer = document.getElementById('main-container');
-        const videoColumn = document.getElementById('video-column');
-        const pages = {
-            menu: document.getElementById('menu-page'),
-            settings: document.getElementById('settings-page'),
-            broadcast: document.getElementById('broadcast-page'),
-            watch: document.getElementById('watch-page'),
-        };
-        const goSettingsBtn = document.getElementById('go-settings-btn');
-        const goWatchBtn = document.getElementById('go-watch-btn');
-        const startBroadcastBtn = document.getElementById('start-broadcast-btn');
-        const backBtns = [
-            document.getElementById('back-to-menu-broadcast'),
-            document.getElementById('back-to-menu-watch'),
-            document.getElementById('back-to-menu-settings'),
-        ];
-        const localVideo = document.getElementById('localVideo');
-        const remoteCanvas = document.getElementById('remoteCanvas');
-        const canvasWrapper = document.getElementById('canvas-wrapper');
-        const broadcastStatus = document.getElementById('broadcast-status');
-        const watchStatus = document.getElementById('watch-status');
-        const statusDot = document.getElementById('statusDot');
-        const menuStatus = document.getElementById('menu-status');
-        const fullscreenBtn = document.getElementById('fullscreen-btn');
-        const playPauseBtn = document.getElementById('playPauseBtn');
-        const playIcon = document.getElementById('playIcon');
-        const pauseIcon = document.getElementById('pauseIcon');
-        const viewerCountBroadcaster = document.getElementById('viewer-count-broadcaster');
-        const viewerCountBroadcasterValue = document.getElementById('viewer-count-broadcaster-value');
-        const viewerCountWatcher = document.getElementById('viewer-count-watcher');
-        const viewerCountWatcherValue = document.getElementById('viewer-count-watcher-value');
-        const broadcastSourceRadios = document.querySelectorAll('input[name="broadcast-source"]');
-        const inputDevicesGroup = document.getElementById('input-devices-group');
-        const videoQualityGroup = document.getElementById('video-quality-group');
-        const videoSourceSelect = document.getElementById('videoSourceSelect');
-        const audioSourceSelect = document.getElementById('audioSourceSelect');
-        const audioMeterCanvas = document.getElementById('audio-meter-canvas');
-        const resolutionSlider = document.getElementById('resolutionSlider');
-        const resolutionValue = document.getElementById('resolutionValue');
-        const resolutionSetting = document.getElementById('resolution-setting');
-        const framerateSetting = document.getElementById('framerate-setting');
-        const bitrateSlider = document.getElementById('bitrateSlider');
-        const bitrateValue = document.getElementById('bitrateValue');
-        const framerateSlider = document.getElementById('framerateSlider');
-        const framerateValue = document.getElementById('framerateValue');
-        const audioQualitySlider = document.getElementById('audioQualitySlider');
-        const audioQualityValue = document.getElementById('audioQualityValue');
-        const performanceSlider = document.getElementById('performanceSlider');
-        const performanceValue = document.getElementById('performanceValue');
-        const keyframeIntervalSlider = document.getElementById('keyframeIntervalSlider');
-        const keyframeIntervalValue = document.getElementById('keyframeIntervalValue');
-        const volumeSlider = document.getElementById('volume-slider');
-        const bufferSlider = document.getElementById('bufferSlider');
-        const bufferValue = document.getElementById('bufferValue');
-        const liveModeCheckbox = document.getElementById('liveModeCheckbox');
-        const latencyControls = document.getElementById('latency-controls');
-        const directLinkIcon = document.getElementById('direct-link-icon');
-        const directLinkBrokenIcon = document.getElementById('direct-link-broken-icon');
-        const canvasContext = remoteCanvas.getContext('2d');
+        // --- UI Element Variables (declared here, assigned in main) ---
+        let mainContainer, videoColumn, pages, goSettingsBtn, goWatchBtn, startBroadcastBtn, backBtns, localVideo, remoteCanvas,
+            canvasWrapper, broadcastStatus, watchStatus, statusDot, menuStatus, fullscreenBtn, playPauseBtn, playIcon, pauseIcon,
+            viewerCountBroadcaster, viewerCountBroadcasterValue, viewerCountWatcher, viewerCountWatcherValue,
+            broadcastSourceRadios, inputDevicesGroup, videoQualityGroup, videoSourceSelect, audioSourceSelect, audioMeterCanvas,
+            resolutionSlider, resolutionValue, resolutionSetting, framerateSetting, bitrateSlider, bitrateValue, framerateSlider,
+            framerateValue, audioQualitySlider, audioQualityValue, performanceSlider, performanceValue, keyframeIntervalSlider,
+            keyframeIntervalValue, volumeSlider, bufferSlider, bufferValue, latencyControls, canvasContext, loginModal, loginContent, loadingContent, connectWalletBtn, guestBtn,
+            loadingInstructions, chatContainer, messageInput, sendBtn, emojiBtn, messagesContainer, emojiPicker,
+            nicknameModal, nicknameInput, saveNicknameBtn, resetNicknameBtn, nicknameBtn, chatUserId, settingsStatus, nicknameBtnBroadcast, broadcasterUserId,
+            broadcasterInfoOnWatchPage, toggleLatencyControlsBtn, latencyControlsCollapsible, toggleLatencyArrow;
 
-        // --- UI Elements (Chat) ---
-        const chatContainer = document.getElementById('chat-container');
-        const messageInput = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const emojiBtn = document.getElementById('emojiBtn');
-        const messagesContainer = document.getElementById('messagesContainer');
-        const emojiPicker = document.getElementById('emojiPicker');
         const emojis = [
-            '😂', '😭', '❤️', '👍', '👎', '👏', '🔥', '💯', '🤔', '🙏', '🤯', '🥳', '😎',
-            '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😊', '😇', '🙂', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
-            '🤩', '🤪', '😜', '😝', '😋', '😛', '🤑', '🤭', '🤫', '😶', '😐', '😑', '😏', '😒', '🙄', '😬', '🤥', '😌',
-            '😔', '😴', '🤤', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '😵', '🤯', '🤠', '😎', '🤓', '🧐', '😕',
-            '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😩', '😫', '😡', '😠', '🤬', '😈', '👿',
-            '💀', '☠️', '💩', '👻', '👽', '🤖', '👾', '🙈', '🙉', '🙊',
-            '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '👍', '👎', '✊', '🤛', '🤜', '👏', '🙌',
-            '💪', '✍️', '🙏', '🦶', '🦵', '👂', '👃', '👁️', '👀', '🧠', '👅', '👄',
-            '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦉', '🐛', '🦋', '🐢', '🐍', '🐙', '🦑', '🦞', '🦀', '🐠', '🐟', '🐡', '🦈', '🐳', '🐬', '🐾',
+            '😂', '😭', '❤️', '👍', '👎', '👏', '🔥', '💯', '🤔', '🙏', '🤯', '🥳', '😎', '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😊', '😇', '🙂', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+            '🤩', '🤪', '😜', '😝', '😋', '😛', '🤑', '🤭', '🤫', '😶', '😐', '😑', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😴', '🤤', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '😵', '🤯', '🤠', '😎', '🤓', '🧐', '😕',
+            '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😩', '😫', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '👻', '👽', '🤖', '👾', '🙈', '🙉', '🙊', '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '👍', '👎', '✊', '🤛', '🤜', '👏', '🙌',
+            '💪', '✍️', '🙏', '🦶', '🦵', '👂', '👃', '👁️', '👀', '🧠', '👅', '👄', '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦉', '🐛', '🦋', '🐢', '🐍', '🐙', '🦑', '🦞', '🦀', '🐠', '🐟', '🐡', '🦈', '🐳', '🐬', '🐾',
             '🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥕', '🥔', '🌶️', '🌽', '🍄', '🥜', '🌰', '🍞', '🥐', '🥖', '🥨', '🥞', '🧇', '🧀', '🍗', '🍖', '🍣', '🍤', '🍙', '🍚', '🍜', '🍲', '🍝', '🍕', '🍔', '🍟', '🌭', '🌮', '🌯', '🥙', '🥪', '🍟', '🍡', '🍦', '🍩', '🍪', '🎂', '🍰', '🍫', '🍬', '🍭', '🍮',
             '⚽', '🏀', '🏈', '⚾', '🥎', '🏐', '🏉', '🎾', '🥏', '🎳', '🏏', '🏑', '🏒', '🥍', '🏓', '🏸', '🥊', '🥋', '🥅', '⛳', '🎯', '🪁', '🎣', '🤿', '🎨', '🎬', '🎤', '🎧', '🎸', '🎹', '🎷', '🎺', '🎻', '🥁', '🎲', '♟️', '🎮', '🕹️',
             '❤️', '🧡', '💛', '💚', '💙', '💜', '🤎', '🖤', '🤍', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💌', '💥', '💫', '🌟', '✨', '⚡', '🔥', '☄️', '💧', '🌊', '💦', '💧',
@@ -475,6 +499,13 @@
         let localStream, audioContext, gainNode;
         let videoSubscription, audioSubscription, presenceSubscription, chatSubscription;
         let isBroadcasting = false, isViewing = false;
+        let mySessionId = '';
+        let myRealAddress = '';
+        let mySignature = ''; // To store the user's signature
+        let signedMessageForVerification = ''; // To store the message that was signed
+        let myNickname = '';
+        let userNicknames = new Map();
+        let verifiedUsers = new Map(); // To cache verification results
         let lastKeyFrameTimestamp = 0, lastChunkReceivedTimestamp = 0, streamHealthInterval = null;
         const STALE_STREAM_TIMEOUT_MS = 3000;
         let broadcastSourceType = 'camera';
@@ -483,14 +514,18 @@
         let presenceHeartbeatInterval = null, broadcasterPresenceInterval = null;
         const VIEWER_TIMEOUT_MS = 15000, HEARTBEAT_INTERVAL_MS = 10000;
         let detailedWatchStatus = 'Looking for a broadcast...';
+        
+        // --- Viewer Playback State ---
         let videoBuffer = [], audioBuffer = [];
         let isPlaying = false, isManuallyPaused = false;
         let playbackStartTime = 0, mediaStartTime = 0;
-        let bufferTargetMs = 200, renderLoopId = null, isLiveMode = true, nextAudioScheduleTime = 0;
+        let effectiveBufferTargetMs = LIVE_BUFFER_TARGET_MS;
+        let nextAudioScheduleTime = 0;
         let lastRenderedFrame = null, currentStreamConfigId = null; 
-        let myPublisherId = '';
+        let waitingForKeyframe = false; // Flag to force recovery
 
         const userColors = new Map();
+        const userRealAddresses = new Map();
         const colorPalette = [
             '#FF8A65', '#4FC3F7', '#AED581', '#F06292',
             '#BA68C8', '#FFD54F', '#4DB6AC', '#7986CB'
@@ -506,16 +541,52 @@
             return Math.abs(hash);
         }
 
+        function getColorKey(publisherId) {
+            return userRealAddresses.get(publisherId) || publisherId;
+        }
+
         function getUserColor(publisherId) {
-            if (!userColors.has(publisherId)) {
-                const hash = simpleHash(publisherId);
+            const colorKey = getColorKey(publisherId);
+            if (!userColors.has(colorKey)) {
+                const hash = simpleHash(colorKey);
                 const color = colorPalette[hash % colorPalette.length];
-                userColors.set(publisherId, color);
+                userColors.set(colorKey, color);
             }
-            return userColors.get(publisherId);
+            return userColors.get(colorKey);
+        }
+
+        function getDisplayName(publisherId) {
+            const realAddress = userRealAddresses.get(publisherId);
+            const nickname = userNicknames.get(publisherId);
+            const sanitizedNickname = sanitizeHTML(nickname || '');
+            const isVerified = verifiedUsers.get(getColorKey(publisherId));
+
+            if (realAddress) { // Wallet user
+                const shortAddress = `(${realAddress.slice(0, 6)}...${realAddress.slice(-4)})`;
+                const verificationMark = isVerified 
+                    ? ` <span class="tooltip-container">
+                           <span class="cursor-help">✅</span>
+                           <span class="tooltip-text !w-56 !-ml-28 !bottom-6 !text-xs !text-left !font-normal">This user has proven ownership of their wallet address through a cryptographic signature.</span>
+                       </span>`
+                    : '';
+                
+                if (sanitizedNickname) {
+                    return `${sanitizedNickname} ${shortAddress}${verificationMark}`;
+                }
+                return `${realAddress.slice(0, 6)}...${realAddress.slice(-4)}${verificationMark}`;
+            } else { // Guest user
+                const shortSessionId = `(${publisherId.slice(0, 6)}...${publisherId.slice(-4)})`;
+                if (sanitizedNickname) {
+                    return `${sanitizedNickname} ${shortSessionId}`;
+                }
+                return shortSessionId;
+            }
         }
 
         // --- Helper Functions ---
+        function sanitizeHTML(str) {
+            return DOMPurify.sanitize(str, {ALLOWED_TAGS: ['b', 'i', 'strong', 'em'], ALLOWED_ATTR: []});
+        }
         function arrayBufferToBase64(buffer) {
             let binary = '', bytes = new Uint8Array(buffer);
             for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
@@ -526,32 +597,105 @@
             for (let i = 0; i < len; i++) { bytes[i] = binary_string.charCodeAt(i); }
             return bytes.buffer;
         }
-
-        function alignAndMatchHeight() {
-            const chatBox = document.querySelector('#chat-container > div');
-            if (!chatBox || chatContainer.classList.contains('hidden')) {
-                return;
+        
+        function insertIntoSortedBuffer(buffer, item) {
+            let low = 0, high = buffer.length;
+            while (low < high) {
+                const mid = (low + high) >>> 1;
+                if (buffer[mid].timestamp < item.timestamp) low = mid + 1;
+                else high = mid;
             }
+            buffer.splice(low, 0, item);
+        }
 
-            const activePlayerPage = document.querySelector('#watch-page.active, #broadcast-page.active');
-            if (activePlayerPage) {
-                const videoTitle = activePlayerPage.querySelector('.text-center');
-                const videoBox = activePlayerPage.querySelector('.bg-zinc-800');
-                
-                if (videoTitle && videoBox) {
-                    // Align Tops by adding padding to the chat container to match the video title's offset
-                    const titleHeight = videoTitle.offsetHeight;
-                    const titleMarginBottom = parseInt(window.getComputedStyle(videoTitle).marginBottom);
-                    const totalOffset = titleHeight + titleMarginBottom;
-                    chatContainer.style.paddingTop = `${totalOffset}px`;
-
-                    // Match Heights of the boxes
-                    const videoBoxHeight = videoBox.offsetHeight;
-                    chatBox.style.height = `${videoBoxHeight}px`;
-                }
+        function setLoginModalState(state) {
+            if (state === 'loading') {
+                loginContent.classList.add('hidden');
+                loadingContent.classList.remove('hidden');
+            } else { // 'buttons'
+                loginContent.classList.remove('hidden');
+                loadingContent.add('hidden');
             }
         }
 
+        async function connectWithWallet() {
+            const injectedProvider = window.ethereum || window.top?.ethereum;
+            if (!injectedProvider) {
+                alert("MetaMask not found. Please install the MetaMask extension and refresh the page.");
+                return;
+            }
+            try {
+                setLoginModalState('loading');
+                const provider = new ethers.providers.Web3Provider(injectedProvider);
+                await provider.send("eth_requestAccounts", []);
+                const signer = provider.getSigner();
+                const userAddress = await signer.getAddress();
+                
+                // Create a clear, timestamped message for signing
+                signedMessageForVerification = `Login to Decentralized Stream\n\nTimestamp: ${new Date().toISOString()}`;
+                
+                // Request a single signature for both session key generation and identity verification
+                const signature = await signer.signMessage(signedMessageForVerification);
+                
+                // Use the hash of the signature for the session key (private, for authentication)
+                const sessionPrivateKey = ethers.utils.sha256(ethers.utils.toUtf8Bytes(signature));
+                
+                // Store the public-facing data
+                myRealAddress = userAddress;
+                mySignature = signature; // Store the original signature to share as proof
+                
+                await initializeApp({ auth: { privateKey: sessionPrivateKey } });
+            } catch (err) {
+                console.error("Wallet connection failed:", err);
+                myRealAddress = '';
+                mySignature = '';
+                signedMessageForVerification = '';
+                let errorMessage = "Wallet connection request was rejected or failed.";
+                if (err.code === 'ACTION_REJECTED') {
+                    errorMessage = "The signature request was rejected in your wallet.";
+                }
+                alert(errorMessage);
+                setLoginModalState('buttons');
+            }
+        }
+
+        function alignAndMatchHeight() {
+            const chatContainer = document.getElementById('chat-container');
+            const chatBox = document.querySelector('#chat-container > div');
+            if (!chatBox || chatContainer.classList.contains('hidden')) { return; }
+
+            // Watch page logic (remains unchanged)
+            if (document.getElementById('watch-page').classList.contains('active')) {
+                const playerHeader = document.getElementById('player-header');
+                const playerContainer = document.getElementById('player-container');
+                
+                if (playerHeader && playerContainer) {
+                    const headerRect = playerHeader.getBoundingClientRect();
+                    const containerRect = playerContainer.getBoundingClientRect();
+                    const mainContainerRect = document.getElementById('main-container').getBoundingClientRect();
+
+                    const paddingTop = headerRect.top - mainContainerRect.top;
+                    const totalHeight = containerRect.bottom - headerRect.top;
+
+                    chatContainer.style.paddingTop = `${paddingTop > 0 ? paddingTop : 0}px`;
+                    chatBox.style.height = `${totalHeight}px`;
+                }
+            } 
+            // Broadcast page logic (NEW and specific)
+            else if (document.getElementById('broadcast-page').classList.contains('active')) {
+                const playerBox = document.querySelector('#broadcast-page .bg-zinc-800');
+                if (playerBox) {
+                    const playerRect = playerBox.getBoundingClientRect();
+                    const chatContainerRect = chatContainer.getBoundingClientRect();
+                    
+                    // Calculate the required padding to align the top of the chat box with the top of the player box
+                    const paddingTop = playerRect.top - chatContainerRect.top;
+                    
+                    chatContainer.style.paddingTop = `${paddingTop > 0 ? paddingTop : 0}px`; // Ensure padding is not negative
+                    chatBox.style.height = `${playerRect.height}px`;
+                }
+            }
+        }
 
         function showPage(pageName) {
             Object.values(pages).forEach(p => p.classList.remove('active'));
@@ -560,21 +704,16 @@
             if (pageName === 'broadcast' || pageName === 'watch') {
                 videoColumn.classList.remove('lg:col-span-5');
                 videoColumn.classList.add('lg:col-span-3');
-                mainContainer.classList.remove('items-center');
-                mainContainer.classList.add('items-start');
                 chatContainer.classList.remove('hidden');
-                setTimeout(alignAndMatchHeight, 50);
+                setTimeout(alignAndMatchHeight, 50); // Align after page is shown
             } else {
                 videoColumn.classList.remove('lg:col-span-3');
                 videoColumn.classList.add('lg:col-span-5');
-                mainContainer.classList.remove('items-start');
-                mainContainer.classList.add('items-center');
                 chatContainer.classList.add('hidden');
                 chatContainer.style.paddingTop = '0px';
                 const chatBox = document.querySelector('#chat-container > div');
                 if (chatBox) chatBox.style.height = null; 
             }
-
             if (pageName !== 'settings') stopAudioMeter();
         }
 
@@ -582,7 +721,7 @@
         function stopAudioMeter() {
             if (audioMeter.animationId) cancelAnimationFrame(audioMeter.animationId);
             audioMeter.stream?.getTracks().forEach(track => track.stop());
-            audioMeter.context?.close();
+            if(audioMeter.context?.state !== 'closed') audioMeter.context?.close();
             const ctx = audioMeterCanvas.getContext('2d');
             ctx.clearRect(0, 0, audioMeterCanvas.width, audioMeterCanvas.height);
             audioMeter = { context: null, stream: null, analyser: null, animationId: null };
@@ -615,8 +754,7 @@
         
         // --- Settings Page Logic ---
         async function populateDeviceLists() {
-            try { await navigator.mediaDevices.getUserMedia({ video: true }).then(s=>s.getTracks().forEach(t=>t.stop())); } catch (err) { console.warn("Could not get video device access:", err.message); }
-            try { await navigator.mediaDevices.getUserMedia({ audio: true }).then(s=>s.getTracks().forEach(t=>t.stop())); } catch (err) { console.warn("Could not get audio device access:", err.message); }
+            settingsStatus.textContent = '';
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 videoSourceSelect.innerHTML = ''; audioSourceSelect.innerHTML = '';
@@ -628,39 +766,92 @@
                     else if (device.kind === 'audioinput') { option.text = device.label || `Microphone ${audioSourceSelect.length + 1}`; audioSourceSelect.appendChild(option); hasAudio = true; }
                 });
                 videoSourceSelect.disabled = !hasVideo; audioSourceSelect.disabled = !hasAudio; audioQualitySlider.disabled = !hasAudio;
-                if (broadcastSourceType === 'camera') { startBroadcastBtn.disabled = !hasVideo; } else { startBroadcastBtn.disabled = false; }
+                
+                if (broadcastSourceType === 'camera') { 
+                    startBroadcastBtn.disabled = !hasVideo; 
+                } else { 
+                    startBroadcastBtn.disabled = false; 
+                }
+                
                 if (hasAudio) { startAudioMeter(audioSourceSelect.value); } else { stopAudioMeter(); }
-            } catch (err) { alert(`Error enumerating devices: ${err.message}.`); showPage('menu'); }
+
+            } catch (err) { 
+                console.error("Error enumerating devices:", err);
+                settingsStatus.textContent = `Error getting devices: ${err.message}.`;
+            }
         }
         
         // --- Chat Logic ---
+        async function verifyUser(publisherId, realAddress, signature, signedMessage) {
+            const colorKey = getColorKey(publisherId);
+            if (verifiedUsers.has(colorKey)) return; // Already verified or checked
+
+            try {
+                const recoveredAddress = ethers.utils.verifyMessage(signedMessage, signature);
+                if (recoveredAddress.toLowerCase() === realAddress.toLowerCase()) {
+                    verifiedUsers.set(colorKey, true);
+                    // Update existing messages from this user to show the verified checkmark
+                    document.querySelectorAll(`.message-entry[data-publisher-id="${publisherId}"] .chat-username`).forEach(el => {
+                        el.innerHTML = `${getDisplayName(publisherId)}:`;
+                    });
+                } else {
+                    verifiedUsers.set(colorKey, false); // Mark as failed verification
+                    console.warn(`Signature verification failed for ${realAddress}`);
+                }
+            } catch (error) {
+                verifiedUsers.set(colorKey, false);
+                console.error(`Error verifying signature for ${realAddress}:`, error);
+            }
+        }
+
         function addMessageToUI(message, metadata) {
+            if (message.realAddress) { 
+                userRealAddresses.set(metadata.publisherId, message.realAddress); 
+            }
+            if (message.nickname) { 
+                userNicknames.set(metadata.publisherId, message.nickname); 
+            }
+
+            // Trigger verification for wallet users who haven't been checked yet
+            if (message.realAddress && message.signature && message.signedMessage) {
+                verifyUser(metadata.publisherId, message.realAddress, message.signature, message.signedMessage);
+            }
+
             const msgDiv = document.createElement('div');
             msgDiv.className = 'message-entry text-sm';
+            msgDiv.setAttribute('data-publisher-id', metadata.publisherId); // Add attribute to find messages later
 
             const userSpan = document.createElement('span');
             userSpan.className = 'chat-username';
-            userSpan.textContent = `${metadata.publisherId.slice(0, 12)}:`;
+            userSpan.innerHTML = `${getDisplayName(metadata.publisherId)}:`;
             userSpan.style.color = getUserColor(metadata.publisherId);
-            
+
             const textSpan = document.createElement('span');
             textSpan.className = 'chat-message-text';
-            textSpan.textContent = message.text; // Use textContent for security
+            textSpan.innerHTML = sanitizeHTML(message.text);
 
             msgDiv.appendChild(userSpan);
             msgDiv.appendChild(textSpan);
-
             messagesContainer.appendChild(msgDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
             if(messagesContainer.children.length > MAX_MESSAGES){ 
                 messagesContainer.removeChild(messagesContainer.firstChild);
             }
         }
+
         async function sendMessage() {
             const text = messageInput.value.trim();
             if(!text || !streamrClient) return;
             try {
-                await streamrClient.publish(CHAT_STREAM_ID, { text });
+                const payload = { 
+                    text: text,
+                    realAddress: myRealAddress,
+                    nickname: myNickname,
+                    signature: mySignature, // Include the signature
+                    signedMessage: signedMessageForVerification // Include the message that was signed
+                };
+                await streamrClient.publish(CHAT_STREAM_ID, payload);
                 messageInput.value = ''; messageInput.focus();
             } catch(error){
                 console.error("Failed to send message:", error);
@@ -680,51 +871,323 @@
         }
 
         // --- Core Logic ---
-        document.addEventListener('DOMContentLoaded', async () => {
+        async function initializeApp(authOptions = {}) {
             try {
+                setLoginModalState('loading');
                 menuStatus.textContent = 'Connecting to the P2P network...';
-                streamrClient = new StreamrClient();
+                
+                streamrClient = new StreamrClient(authOptions);
                 await streamrClient.connect();
-                myPublisherId = await streamrClient.getAddress();
-                menuStatus.textContent = 'Ready. Choose an option.';
+                mySessionId = await streamrClient.getAddress();
+                
+                if (myRealAddress) {
+                    userRealAddresses.set(mySessionId, myRealAddress);
+                    // A user automatically trusts their own signature
+                    verifiedUsers.set(getColorKey(mySessionId), true);
+                }
+                const nicknameKey = myRealAddress || mySessionId;
+                myNickname = sessionStorage.getItem(`nickname_${nicknameKey}`) || '';
+                if(myNickname) {
+                    userNicknames.set(mySessionId, myNickname);
+                }
+                chatUserId.innerHTML = getDisplayName(mySessionId);
+                if (broadcasterUserId) {
+                    broadcasterUserId.innerHTML = getDisplayName(mySessionId);
+                }
+
+                loginModal.classList.add('hidden');
+                const connectedId = myRealAddress ? `${myRealAddress.slice(0, 6)}...${myRealAddress.slice(-4)}` : 'Guest';
+                menuStatus.textContent = `Connected as: ${connectedId}. Choose an option.`;
                // goSettingsBtn.disabled = false;
                 goWatchBtn.disabled = false;
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
-                menuStatus.textContent = `Error connecting: ${error.message}. Please refresh.`;
+                alert(`Error connecting: ${error.message}. Please refresh.`);
+                setLoginModalState('buttons');
             }
-            // Setup Emoji picker
+        }
+
+        function setupEventListeners() {
+            // Login
+            guestBtn.onclick = () => {
+                loadingInstructions.textContent = 'Establishing a secure P2P connection...';
+                initializeApp();
+            };
+            connectWalletBtn.onclick = () => {
+                loadingInstructions.textContent = 'Please follow the instructions in your wallet.';
+                connectWithWallet();
+            };
+
+            // Nickname
+            nicknameBtn.onclick = () => {
+                nicknameInput.value = myNickname;
+                nicknameModal.classList.remove('hidden');
+            };
+            if (nicknameBtnBroadcast) {
+                nicknameBtnBroadcast.onclick = () => {
+                    nicknameInput.value = myNickname;
+                    nicknameModal.classList.remove('hidden');
+                };
+            }
+            saveNicknameBtn.onclick = () => {
+                const newNickname = sanitizeHTML(nicknameInput.value.trim());
+                myNickname = newNickname;
+                const nicknameKey = myRealAddress || mySessionId;
+                sessionStorage.setItem(`nickname_${nicknameKey}`, myNickname);
+                userNicknames.set(mySessionId, myNickname);
+                chatUserId.innerHTML = getDisplayName(mySessionId);
+                if (broadcasterUserId) {
+                    broadcasterUserId.innerHTML = getDisplayName(mySessionId);
+                }
+                nicknameModal.classList.add('hidden');
+            };
+            resetNicknameBtn.onclick = () => {
+                myNickname = '';
+                const nicknameKey = myRealAddress || mySessionId;
+                sessionStorage.removeItem(`nickname_${nicknameKey}`);
+                userNicknames.delete(mySessionId);
+                chatUserId.innerHTML = getDisplayName(mySessionId);
+                if (broadcasterUserId) {
+                    broadcasterUserId.innerHTML = getDisplayName(mySessionId);
+                }
+                nicknameModal.classList.add('hidden');
+            };
+            nicknameModal.onclick = (e) => {
+                if (e.target === nicknameModal) { nicknameModal.classList.add('hidden'); }
+            };
+
+            // Navigation
+            goSettingsBtn.onclick = initiateBroadcastFlow;
+            goWatchBtn.onclick = joinStream;
+            startBroadcastBtn.onclick = startBroadcast;
+            backBtns.forEach(btn => btn.onclick = goBackToMenu);
+            
+            // Watch Page Controls
+            fullscreenBtn.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else canvasWrapper.requestFullscreen().catch(err => alert(`Fullscreen Error: ${err.message}`)); };
+            playPauseBtn.onclick = () => {
+                isManuallyPaused = !isManuallyPaused;
+                playIcon.classList.toggle('hidden', !isManuallyPaused);
+                pauseIcon.classList.toggle('hidden', isManuallyPaused);
+                if (audioContext) {
+                    if (isManuallyPaused) {
+                        audioContext.suspend();
+                    } else {
+                        // When unpausing, reset the start times to smoothly resume
+                        playbackStartTime = audioContext.currentTime;
+                        mediaStartTime = nextAudioScheduleTime > 0 ? (mediaStartTime + (nextAudioScheduleTime - playbackStartTime) * 1000000) : mediaStartTime;
+                        audioContext.resume();
+                    }
+                }
+            };
+            volumeSlider.addEventListener('input', e => { if (gainNode) gainNode.gain.setValueAtTime(e.target.value / 100, audioContext.currentTime); });
+            
+            bufferSlider.addEventListener('input', e => {
+                const newBufferValue = parseInt(e.target.value, 10);
+                effectiveBufferTargetMs = newBufferValue;
+                
+                let label = '';
+                if (newBufferValue <= 200) {
+                    label = '(Lowest Latency)';
+                } else if (newBufferValue >= 2500) {
+                    label = '(Maximum Stability)';
+                }
+                bufferValue.textContent = `${newBufferValue} ms ${label}`.trim();
+            });
+            if (toggleLatencyControlsBtn) {
+                toggleLatencyControlsBtn.onclick = () => {
+                    latencyControlsCollapsible.classList.toggle('hidden');
+                    toggleLatencyArrow.classList.toggle('open');
+                    setTimeout(alignAndMatchHeight, 50); 
+                };
+            }
+
+
+            // Settings Page Controls
+            audioSourceSelect.addEventListener('change', () => startAudioMeter(audioSourceSelect.value));
+            resolutionSlider.addEventListener('input', e => { resolutionValue.textContent = resolutions[e.target.value].text; });
+            bitrateSlider.addEventListener('input', e => { bitrateValue.textContent = `${(e.target.value / 1000000).toFixed(1)} Mbps`; });
+            framerateSlider.addEventListener('input', e => { framerateValue.textContent = `${e.target.value} fps`; });
+            audioQualitySlider.addEventListener('input', e => { audioQualityValue.textContent = audioQualities[e.target.value].text; });
+            const performanceModes = ['Lowest Latency', 'Best Quality'];
+            performanceSlider.addEventListener('input', e => { performanceValue.textContent = performanceModes[e.target.value]; });
+            keyframeIntervalSlider.addEventListener('input', e => { keyframeIntervalValue.textContent = `${(e.target.value / 1000).toFixed(1)} s`; });
+            broadcastSourceRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    broadcastSourceType = e.target.value;
+                    document.querySelectorAll('label[for^="source-"]').forEach(label => { label.classList.remove('bg-zinc-600', 'text-white'); label.classList.add('hover:bg-zinc-600/50'); });
+                    const selectedLabel = document.querySelector(`label[for="${e.target.id}"]`); selectedLabel.classList.add('bg-zinc-600', 'text-white'); selectedLabel.classList.remove('hover:bg-zinc-600/50');
+                    const isCamera = broadcastSourceType === 'camera';
+                    inputDevicesGroup.style.display = isCamera ? 'block' : 'none'; resolutionSetting.style.display = isCamera ? 'block' : 'none'; framerateSetting.style.display = isCamera ? 'block' : 'none';
+                    if (isCamera) { 
+                        populateDeviceLists(); 
+                    } else { 
+                        startBroadcastBtn.disabled = false; 
+                        stopAudioMeter(); 
+                    }
+                });
+            });
+            
+            // Chat Controls
+            sendBtn.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keypress', (e) => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
+            emojiBtn.addEventListener('click', (e) => { e.stopPropagation(); emojiPicker.style.display = emojiPicker.style.display === 'flex' ? 'none' : 'flex'; });
             emojis.forEach(e => {
                 const span = document.createElement('span'); span.textContent = e;
                 span.addEventListener('click', () => { messageInput.value += e; messageInput.focus(); emojiPicker.style.display = 'none'; });
                 emojiPicker.appendChild(span);
             });
+            
+            // Global Listeners
+            document.addEventListener('click', (e) => { if (emojiPicker && !emojiPicker.contains(e.target) && e.target !== emojiBtn) { emojiPicker.style.display = 'none'; } });
             window.addEventListener('resize', alignAndMatchHeight);
-        });
+            window.addEventListener('beforeunload', () => { if(isViewing && currentUserId) streamrClient.publish(PRESENCE_STREAM_ID, { type:'leave', userId:currentUserId }); });
+        }
+        
+        async function initiateBroadcastFlow() {
+            const originalStatus = menuStatus.textContent;
+            menuStatus.textContent = 'Requesting permissions...';
+            try {
+                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                tempStream.getTracks().forEach(track => track.stop());
+                showPage('settings');
+
+                // Explicitly reset the radio button state to ensure the 'change' event fires correctly.
+                const cameraRadio = document.getElementById('source-camera');
+                if (cameraRadio) {
+                    cameraRadio.checked = true;
+                    // Trigger the change event to set the initial state to 'camera' and populate device lists.
+                    cameraRadio.dispatchEvent(new Event('change'));
+                }
+
+            } catch (err) {
+                console.error("Permission error on initial request:", err);
+                if (err.name === 'NotAllowedError') {
+                    menuStatus.textContent = 'Permission denied. Please allow access in browser settings.';
+                } else {
+                     menuStatus.textContent = `Error accessing devices: ${err.name}`;
+                }
+                setTimeout(() => { menuStatus.textContent = originalStatus; }, 3000);
+            }
+        }
+
+        function main() {
+            // --- Initialize UI Elements ---
+            mainContainer = document.getElementById('main-container');
+            videoColumn = document.getElementById('video-column');
+            pages = { menu: document.getElementById('menu-page'), settings: document.getElementById('settings-page'), broadcast: document.getElementById('broadcast-page'), watch: document.getElementById('watch-page'), };
+            goSettingsBtn = document.getElementById('go-settings-btn');
+            goWatchBtn = document.getElementById('go-watch-btn');
+            startBroadcastBtn = document.getElementById('start-broadcast-btn');
+            backBtns = [ document.getElementById('back-to-menu-broadcast'), document.getElementById('back-to-menu-watch'), document.getElementById('back-to-menu-settings'), ];
+            localVideo = document.getElementById('localVideo');
+            remoteCanvas = document.getElementById('remoteCanvas');
+            canvasWrapper = document.getElementById('canvas-wrapper');
+            broadcastStatus = document.getElementById('broadcast-status');
+            watchStatus = document.getElementById('watch-status');
+            statusDot = document.getElementById('statusDot');
+            menuStatus = document.getElementById('menu-status');
+            fullscreenBtn = document.getElementById('fullscreen-btn');
+            playPauseBtn = document.getElementById('playPauseBtn');
+            playIcon = document.getElementById('playIcon');
+            pauseIcon = document.getElementById('pauseIcon');
+            viewerCountBroadcaster = document.getElementById('viewer-count-broadcaster');
+            viewerCountBroadcasterValue = document.getElementById('viewer-count-broadcaster-value');
+            viewerCountWatcher = document.getElementById('viewer-count-watcher');
+            viewerCountWatcherValue = document.getElementById('viewer-count-watcher-value');
+            broadcastSourceRadios = document.querySelectorAll('input[name="broadcast-source"]');
+            inputDevicesGroup = document.getElementById('input-devices-group');
+            videoQualityGroup = document.getElementById('video-quality-group');
+            videoSourceSelect = document.getElementById('videoSourceSelect');
+            audioSourceSelect = document.getElementById('audioSourceSelect');
+            audioMeterCanvas = document.getElementById('audio-meter-canvas');
+            resolutionSlider = document.getElementById('resolutionSlider');
+            resolutionValue = document.getElementById('resolutionValue');
+            resolutionSetting = document.getElementById('resolution-setting');
+            framerateSetting = document.getElementById('framerate-setting');
+            bitrateSlider = document.getElementById('bitrateSlider');
+            bitrateValue = document.getElementById('bitrateValue');
+            framerateSlider = document.getElementById('framerateSlider');
+            framerateValue = document.getElementById('framerateValue');
+            audioQualitySlider = document.getElementById('audioQualitySlider');
+            audioQualityValue = document.getElementById('audioQualityValue');
+            performanceSlider = document.getElementById('performanceSlider');
+            performanceValue = document.getElementById('performanceValue');
+            keyframeIntervalSlider = document.getElementById('keyframeIntervalSlider');
+            keyframeIntervalValue = document.getElementById('keyframeIntervalValue');
+            volumeSlider = document.getElementById('volume-slider');
+            bufferSlider = document.getElementById('bufferSlider');
+            bufferValue = document.getElementById('bufferValue');
+            latencyControls = document.getElementById('latency-controls');
+            canvasContext = remoteCanvas.getContext('2d');
+            loginModal = document.getElementById('loginModal');
+            loginContent = document.getElementById('loginContent');
+            loadingContent = document.getElementById('loadingContent');
+            connectWalletBtn = document.getElementById('connectWalletBtn');
+            guestBtn = document.getElementById('guestBtn');
+            loadingInstructions = document.getElementById('loading-instructions');
+            chatContainer = document.getElementById('chat-container');
+            messageInput = document.getElementById('messageInput');
+            sendBtn = document.getElementById('sendBtn');
+            emojiBtn = document.getElementById('emojiBtn');
+            messagesContainer = document.getElementById('messagesContainer');
+            emojiPicker = document.getElementById('emojiPicker');
+            nicknameModal = document.getElementById('nicknameModal');
+            nicknameInput = document.getElementById('nicknameInput');
+            saveNicknameBtn = document.getElementById('saveNicknameBtn');
+            resetNicknameBtn = document.getElementById('resetNicknameBtn');
+            nicknameBtn = document.getElementById('nicknameBtn');
+            chatUserId = document.getElementById('chat-user-id');
+            settingsStatus = document.getElementById('settings-status');
+            broadcasterUserId = document.getElementById('broadcaster-user-id');
+            nicknameBtnBroadcast = document.getElementById('nicknameBtnBroadcast');
+            broadcasterInfoOnWatchPage = document.getElementById('broadcaster-info-on-watch-page');
+            toggleLatencyControlsBtn = document.getElementById('toggle-latency-controls-btn');
+            latencyControlsCollapsible = document.getElementById('latency-controls-collapsible');
+            toggleLatencyArrow = document.getElementById('toggle-latency-arrow');
+            
+            // --- Setup Event Listeners ---
+            setupEventListeners();
+        }
+
+        document.addEventListener('DOMContentLoaded', main);
 
         // --- Broadcaster ---
         async function startBroadcast() {
             stopAudioMeter();
-            if (!window.VideoEncoder || !window.AudioEncoder) return alert('Error: WebCodecs API not supported in this browser.');
+            settingsStatus.textContent = '';
+            if (!window.VideoEncoder || !window.AudioEncoder) {
+                settingsStatus.textContent = 'Error: WebCodecs API not supported in this browser.';
+                return;
+            }
             try {
                 const audioConstraints = { autoGainControl: false, echoCancellation: true, noiseSuppression: true };
                 if (broadcastSourceType === 'camera') {
                     const res = resolutions[resolutionSlider.value].value; const [w,h] = res.split('x').map(Number); const fps = parseInt(framerateSlider.value, 10);
                     const constraints = { video: { deviceId:{exact:videoSourceSelect.value}, width:w, height:h, frameRate:{ideal:fps, max:fps} }, audio: { deviceId:{exact:audioSourceSelect.value}, ...audioConstraints } };
-                    localStream = await navigator.mediaDevices.getUserMedia(constraints); localVideo.classList.add('camera-view');
+                    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    localVideo.classList.add('camera-view');
                 } else {
                     localStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor:"always" }, audio: audioConstraints });
                     localVideo.classList.remove('camera-view'); localStream.getVideoTracks()[0].onended = goBackToMenu;
                 }
                 const hasVideo = localStream.getVideoTracks().length > 0, hasAudio = localStream.getAudioTracks().length > 0;
-                if(!hasVideo && !hasAudio) return alert("Selected source has no video or audio.");
+                if(!hasVideo && !hasAudio) {
+                     settingsStatus.textContent = "Selected source has no video or audio.";
+                     localStream.getTracks().forEach(t => t.stop());
+                     return;
+                }
                 showPage('broadcast'); isBroadcasting = true; startBroadcasterPresence(); await startChat(); localVideo.srcObject = localStream;
                 let vSettings, statusText = `Broadcasting ${broadcastSourceType} `;
                 if(hasVideo) {
                     const trackSettings = localStream.getVideoTracks()[0].getSettings(); const bitrate = parseInt(bitrateSlider.value, 10); const perf = (performanceSlider.value === '0') ? 'realtime' : 'quality';
-                    vSettings = { width:trackSettings.width, height:trackSettings.height, framerate:trackSettings.frameRate, bitrate };
+                    const fps = parseInt(framerateSlider.value, 10); // Get the desired FPS from the slider
+                    vSettings = { width:trackSettings.width, height:trackSettings.height, framerate:fps, bitrate }; // Use the desired FPS
                     const vConfig = { codec:'avc1.64002A', width:vSettings.width, height:vSettings.height, bitrate:vSettings.bitrate, framerate:vSettings.framerate, hardwareAcceleration:'prefer-hardware', latencyMode:perf };
-                    if (!(await VideoEncoder.isConfigSupported(vConfig)).supported) { alert(`Video settings not supported.`); return goBackToMenu(); }
+                    if (!(await VideoEncoder.isConfigSupported(vConfig)).supported) {
+                        goBackToMenu();
+                        alert(`Video settings not supported.`);
+                        return;
+                    }
                     videoEncoder = new VideoEncoder({ output:(c,m) => handleVideoEncoderOutput(c,m,vSettings), error:e => console.error(`VErr: ${e.message}`) });
                     await videoEncoder.configure(vConfig); readVideoFrames(new MediaStreamTrackProcessor({track:localStream.getVideoTracks()[0]}).readable.getReader());
                     statusText += `(${vSettings.width}x${vSettings.height}@${Math.round(vSettings.framerate)}fps, ${(vSettings.bitrate/1000000).toFixed(1)} Mbps)`;
@@ -738,9 +1201,9 @@
                 }
                 broadcastStatus.textContent = statusText;
             } catch (err) {
-                console.error(`Broadcast start error: ${err.message}`);
-                if(err.name === 'NotAllowedError' || err.name === 'NotFoundError') showPage('settings');
-                else { alert(`Broadcast start error: ${err.message}`); goBackToMenu(); }
+                console.error(`Broadcast start error: ${err.message}`, err);
+                settingsStatus.textContent = `An unexpected error occurred: ${err.name}. Please try again.`;
+                showPage('settings');
             }
         }
         async function handleVideoEncoderOutput(chunk, metadata, streamSettings) {
@@ -784,76 +1247,169 @@
                 if (!statusDot.classList.contains('dot-yellow-flashing')) { statusDot.className = 'status-dot dot-yellow-flashing'; statusDot.title = 'Unstable connection'; watchStatus.textContent = 'Buffering...'; isPlaying = false; }
             }
         }
-        const renderLoop = () => {
+        
+        const renderAndSchedule = () => {
             if (!isViewing) return;
-            if (!isLiveMode && !isManuallyPaused) {
+
+            if (!isManuallyPaused) {
+                // 1. Check if we need to START playback
                 if (!isPlaying) {
-                    const vDur = (videoBuffer.length > 1) ? (videoBuffer[videoBuffer.length-1].timestamp - videoBuffer[0].timestamp)/1000 : 0;
-                    const aDur = (audioBuffer.length > 1) ? (audioBuffer[audioBuffer.length-1].timestamp - audioBuffer[0].timestamp)/1000 : 0;
-                    if (vDur >= bufferTargetMs && aDur >= bufferTargetMs) {
-                        mediaStartTime = audioBuffer[0].timestamp; while (videoBuffer.length > 0 && videoBuffer[0].timestamp < mediaStartTime) videoBuffer.shift().close();
-                        if (videoBuffer.length === 0) return requestAnimationFrame(renderLoop);
-                        isPlaying = true; playbackStartTime = audioContext.currentTime; nextAudioScheduleTime = playbackStartTime;
-                        watchStatus.textContent = detailedWatchStatus; statusDot.className = 'status-dot dot-green';
+                    const videoDuration = (videoBuffer.length > 1) ? (videoBuffer[videoBuffer.length-1].timestamp - videoBuffer[0].timestamp) / 1000 : 0;
+                    const audioDuration = (audioBuffer.length > 1) ? (audioBuffer[audioBuffer.length-1].timestamp - audioBuffer[0].timestamp) / 1000 : 0;
+                    
+                    if (videoDuration >= effectiveBufferTargetMs && audioDuration >= effectiveBufferTargetMs) {
+                        // We have enough data, let's start!
+                        mediaStartTime = audioBuffer[0].timestamp;
+                        // Discard any video frames that are older than the first audio frame
+                        while (videoBuffer.length > 0 && videoBuffer[0].timestamp < mediaStartTime) {
+                            videoBuffer.shift().close();
+                        }
+                        if (videoBuffer.length > 0) {
+                            isPlaying = true;
+                            playbackStartTime = audioContext.currentTime;
+                            nextAudioScheduleTime = playbackStartTime;
+                            watchStatus.textContent = detailedWatchStatus;
+                            statusDot.className = 'status-dot dot-green';
+                        }
                     }
                 }
+
+                // 2. If we are playing, schedule audio and render video
                 if (isPlaying) {
+                    // Schedule all available audio chunks
                     while (audioBuffer.length > 0) {
                         const audioData = audioBuffer.shift();
                         try {
                             const buffer = audioContext.createBuffer(audioData.numberOfChannels, audioData.numberOfFrames, audioData.sampleRate);
-                            for (let i = 0; i < audioData.numberOfChannels; i++) { const chanData=new Float32Array(audioData.numberOfFrames); audioData.copyTo(chanData, {planeIndex: i}); buffer.copyToChannel(chanData, i); }
-                            const source = audioContext.createBufferSource(); source.buffer = buffer; source.connect(gainNode); source.start(nextAudioScheduleTime); nextAudioScheduleTime += buffer.duration;
-                        } catch (err) { console.error("Error scheduling audio:", err); } finally { audioData.close(); }
+                            for (let i = 0; i < audioData.numberOfChannels; i++) {
+                                const chanData = new Float32Array(audioData.numberOfFrames);
+                                audioData.copyTo(chanData, { planeIndex: i });
+                                buffer.copyToChannel(chanData, i);
+                            }
+                            const source = audioContext.createBufferSource();
+                            source.buffer = buffer;
+                            source.connect(gainNode);
+                            source.start(nextAudioScheduleTime);
+                            nextAudioScheduleTime += buffer.duration;
+                        } catch (err) { console.error("Error scheduling audio:", err); } 
+                        finally { audioData.close(); }
                     }
+
+                    // Determine the current media time based on the audio clock
                     const mediaTimeUs = mediaStartTime + ((audioContext.currentTime - playbackStartTime) * 1000000);
-                    let nextFrameToRender = null; while (videoBuffer.length > 0 && videoBuffer[0].timestamp <= mediaTimeUs) { lastRenderedFrame?.close(); lastRenderedFrame=nextFrameToRender; nextFrameToRender=videoBuffer.shift(); }
-                    if (nextFrameToRender) { canvasContext.drawImage(nextFrameToRender, 0, 0, remoteCanvas.width, remoteCanvas.height); lastRenderedFrame?.close(); lastRenderedFrame = nextFrameToRender; }
-                    else if (lastRenderedFrame) { canvasContext.drawImage(lastRenderedFrame, 0, 0, remoteCanvas.width, remoteCanvas.height); }
-                    if (videoBuffer.length === 0 && audioBuffer.length === 0 && audioContext.currentTime > nextAudioScheduleTime) { isPlaying=false; watchStatus.textContent="Buffering..."; statusDot.className='status-dot dot-yellow-flashing'; }
+
+                    // Find the latest video frame that should be displayed
+                    let frameToRender = null;
+                    while (videoBuffer.length > 0 && videoBuffer[0].timestamp <= mediaTimeUs) {
+                        if (frameToRender) frameToRender.close(); // Discard older frames
+                        frameToRender = videoBuffer.shift();
+                    }
+
+                    if (frameToRender) {
+                        canvasContext.drawImage(frameToRender, 0, 0, remoteCanvas.width, remoteCanvas.height);
+                        lastRenderedFrame?.close();
+                        lastRenderedFrame = frameToRender;
+                    } else if (lastRenderedFrame) {
+                        // Redraw the last frame if no new one is ready
+                        canvasContext.drawImage(lastRenderedFrame, 0, 0, remoteCanvas.width, remoteCanvas.height);
+                    }
+                    
+                    // 3. Check for buffer underrun
+                    if (audioContext.currentTime >= nextAudioScheduleTime && audioBuffer.length === 0) {
+                        // We've run out of scheduled audio. We need to pause and wait for the buffer to fill up again.
+                        isPlaying = false; 
+                        watchStatus.textContent = "Buffering...";
+                        statusDot.className = 'status-dot dot-yellow-flashing';
+                    }
                 }
             }
-            requestAnimationFrame(renderLoop);
+            requestAnimationFrame(renderAndSchedule);
         };
+
         async function joinStream() {
             if (!window.VideoDecoder || !window.AudioDecoder) return alert('Error: WebCodecs API not supported.');
             showPage('watch'); isViewing = true; startViewerPresence(); await startChat();
+            
+            effectiveBufferTargetMs = parseInt(bufferSlider.value, 10);
+            
             watchStatus.textContent = detailedWatchStatus; statusDot.className = 'status-dot dot-yellow'; statusDot.title = 'Connecting...';
-            streamHealthInterval = setInterval(checkStreamHealth, 1000); renderLoopId = requestAnimationFrame(renderLoop);
-            audioContext = new (window.AudioContext || window.webkitAudioContext)(); await audioContext.resume(); nextAudioScheduleTime = audioContext.currentTime;
-            gainNode = audioContext.createGain(); gainNode.gain.setValueAtTime(volumeSlider.value / 100, audioContext.currentTime); gainNode.connect(audioContext.destination);
+            streamHealthInterval = setInterval(checkStreamHealth, 1000);
+            
+            audioContext = new (window.AudioContext || window.webkitAudioContext)(); 
+            await audioContext.resume();
+            
+            gainNode = audioContext.createGain(); 
+            gainNode.gain.setValueAtTime(volumeSlider.value / 100, audioContext.currentTime); 
+            gainNode.connect(audioContext.destination);
+
             videoDecoder = new VideoDecoder({
-                output: f => { if (isLiveMode && !isManuallyPaused) { canvasContext.drawImage(f, 0, 0, remoteCanvas.width, remoteCanvas.height); f.close(); } else { videoBuffer.push(f); videoBuffer.sort((a,b) => a.timestamp - b.timestamp); } },
-                error: e => console.error(`VDecErr: ${e.message}`)
+                output: f => {
+                    // If we were waiting for a keyframe, we've got one. Resume normal operation.
+                    if (waitingForKeyframe) waitingForKeyframe = false;
+                    insertIntoSortedBuffer(videoBuffer, f);
+                },
+                error: e => {
+                    console.error(`VDecErr: ${e.message}`);
+                    // When a decoding error occurs, we must reset everything to resynchronize.
+                    isPlaying = false;
+                    videoBuffer.forEach(frame => frame.close());
+                    audioBuffer.forEach(chunk => chunk.close());
+                    videoBuffer = [];
+                    audioBuffer = [];
+                    lastRenderedFrame?.close();
+                    lastRenderedFrame = null;
+                    
+                    watchStatus.textContent = "Recovering from stream error...";
+                    statusDot.className = 'status-dot dot-yellow-flashing';
+
+                    waitingForKeyframe = true;
+                    if (videoDecoder.state === 'configured') {
+                        videoDecoder.reset();
+                    }
+                }
             });
+
             audioDecoder = new AudioDecoder({
-                output: d => {
-                    if (isLiveMode && !isManuallyPaused) {
-                        try {
-                            const buffer = audioContext.createBuffer(d.numberOfChannels, d.numberOfFrames, d.sampleRate);
-                            for (let i = 0; i < d.numberOfChannels; i++) { const chanData=new Float32Array(d.numberOfFrames); d.copyTo(chanData,{planeIndex:i}); buffer.copyToChannel(chanData,i); }
-                            const source = audioContext.createBufferSource(); source.buffer = buffer; source.connect(gainNode);
-                            const scheduleTime = Math.max(audioContext.currentTime, nextAudioScheduleTime); source.start(scheduleTime); nextAudioScheduleTime = scheduleTime + buffer.duration;
-                        } catch (err) { console.error("Error playing audio:", err); } finally { d.close(); }
-                    } else { audioBuffer.push(d); audioBuffer.sort((a,b) => a.timestamp - b.timestamp); }
-                }, error: e => console.error(`ADecErr: ${e.message}`)
+                output: d => insertIntoSortedBuffer(audioBuffer, d),
+                error: e => {
+                    console.error(`ADecErr: ${e.message}`);
+                     // Also reset on audio errors for robustness
+                    if (audioDecoder.state === 'configured') {
+                        audioDecoder.reset();
+                    }
+                }
             });
+
+            // Start the unified rendering loop
+            renderAndSchedule();
+
             const handleMessage = () => {
                 lastChunkReceivedTimestamp = Date.now();
-                if (statusDot.classList.contains('dot-yellow-flashing') || statusDot.classList.contains('dot-yellow')) { statusDot.className = 'status-dot dot-green'; statusDot.title = 'Connected'; watchStatus.textContent = detailedWatchStatus; }
+                if (statusDot.classList.contains('dot-yellow-flashing') || statusDot.classList.contains('dot-yellow')) { 
+                    statusDot.className = 'status-dot dot-green'; 
+                    statusDot.title = 'Connected'; 
+                    if(!isPlaying) watchStatus.textContent = "Buffering...";
+                }
             };
             videoSubscription = await streamrClient.subscribe(VIDEO_STREAM_ID, msg => {
                 if (!isViewing) return; handleMessage();
                 if (msg.config) {
                     const newConfig = msg.config, newConfigId = `${newConfig.codedWidth}x${newConfig.codedHeight}`;
                     const s = newConfig.streamSettings;
-                    detailedWatchStatus = s ? `Receiving: ${s.width}x${s.height} @ ${Math.round(s.framerate)}fps, ~${(s.bitrate / 1000000).toFixed(1)}Mbps` : `Receiving: ${newConfig.codedWidth}x${newConfig.codedHeight}`; watchStatus.textContent = detailedWatchStatus;
+                    detailedWatchStatus = s ? `Receiving: ${s.width}x${s.height} @ ${Math.round(s.framerate)}fps, ~${(s.bitrate / 1000000).toFixed(1)}Mbps` : `Receiving: ${newConfig.codedWidth}x${newConfig.codedHeight}`; 
+                    watchStatus.textContent = detailedWatchStatus;
                     if (newConfigId !== currentStreamConfigId) {
                         currentStreamConfigId = newConfigId; if (newConfig.description) newConfig.description = new Uint8Array(newConfig.description).buffer;
-                        videoDecoder.configure(newConfig); videoBuffer.forEach(f=>f.close()); audioBuffer.forEach(c=>c.close()); lastRenderedFrame?.close(); videoBuffer=[]; audioBuffer=[]; lastRenderedFrame=null; isPlaying=false;
+                        videoDecoder.configure(newConfig); 
+                        videoBuffer.forEach(f=>f.close()); audioBuffer.forEach(c=>c.close()); lastRenderedFrame?.close(); videoBuffer=[]; audioBuffer=[]; lastRenderedFrame=null; isPlaying=false; waitingForKeyframe = false; // Reset recovery flag on new config
                         if(audioDecoder.state === 'configured') audioDecoder.reset(); if(audioContext) nextAudioScheduleTime = audioContext.currentTime;
                         remoteCanvas.width = newConfig.codedWidth; remoteCanvas.height = newConfig.codedHeight; canvasWrapper.style.aspectRatio = `${newConfig.codedWidth} / ${newConfig.codedHeight}`;
                     }
+                }
+                // If we are in recovery mode, only decode keyframes
+                if (waitingForKeyframe && msg.type !== 'key') {
+                    console.log("Skipping delta frame while waiting for keyframe.");
+                    return;
                 }
                 if (videoDecoder.state === 'configured') { try { videoDecoder.decode(new EncodedVideoChunk({ type:msg.type, timestamp:msg.timestamp, duration:msg.duration, data:base64ToArrayBuffer(msg.data_base64) })); } catch (e) { console.error("Error decoding video chunk:", e); } }
             });
@@ -863,16 +1419,21 @@
             });
         }
         async function stopViewing() {
-            isViewing = false; stopViewerPresence(true); if(renderLoopId) cancelAnimationFrame(renderLoopId);
+            isViewing = false; 
+            stopViewerPresence(true);
             videoBuffer.forEach(f=>f.close()); audioBuffer.forEach(c=>c.close()); lastRenderedFrame?.close();
             videoBuffer=[]; audioBuffer=[]; lastRenderedFrame=null; canvasWrapper.style.aspectRatio = ''; currentStreamConfigId=null;
-            isPlaying = false; isManuallyPaused = false; if (streamHealthInterval) clearInterval(streamHealthInterval);
+            isPlaying = false; isManuallyPaused = false; 
+            if (streamHealthInterval) clearInterval(streamHealthInterval);
             lastChunkReceivedTimestamp = 0; statusDot.className = 'status-dot dot-red'; statusDot.title = 'Disconnected';
             detailedWatchStatus = 'Looking for a broadcast...';
+            broadcasterInfoOnWatchPage.textContent = '';
+            broadcasterInfoOnWatchPage.classList.add('hidden');
             if (videoSubscription) await videoSubscription.unsubscribe(); if (audioSubscription) await audioSubscription.unsubscribe();
             if (videoDecoder?.state !== 'closed') videoDecoder.close(); if (audioDecoder?.state !== 'closed') audioDecoder.close();
             if(audioContext?.state !== 'closed') await audioContext.close();
         }
+
 
         // --- Presence Logic ---
         function updateViewerCountUI(count) {
@@ -883,7 +1444,19 @@
             presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, msg => { if(msg.userId) { if(msg.type==='join'||msg.type==='heartbeat') viewers.set(msg.userId, Date.now()); else if (msg.type==='leave') viewers.delete(msg.userId); } });
             broadcasterPresenceInterval = setInterval(async () => {
                 const now = Date.now(); for (const [id, seen] of viewers.entries()) if (now-seen > VIEWER_TIMEOUT_MS) viewers.delete(id);
-                updateViewerCountUI(viewers.size); await streamrClient.publish(PRESENCE_STREAM_ID, { type:'viewer_count_update', count:viewers.size });
+                updateViewerCountUI(viewers.size); 
+                const presencePayload = { 
+                    type:'viewer_count_update', 
+                    count:viewers.size,
+                    broadcaster: {
+                        publisherId: mySessionId,
+                        realAddress: myRealAddress,
+                        nickname: myNickname,
+                        signature: mySignature,
+                        signedMessage: signedMessageForVerification
+                    }
+                };
+                await streamrClient.publish(PRESENCE_STREAM_ID, presencePayload);
             }, 5000);
         }
         function stopBroadcasterPresence() {
@@ -894,7 +1467,22 @@
             currentUserId = `viewer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             await streamrClient.publish(PRESENCE_STREAM_ID, { type:'join', userId:currentUserId });
             presenceHeartbeatInterval = setInterval(() => streamrClient.publish(PRESENCE_STREAM_ID, { type:'heartbeat', userId:currentUserId }), HEARTBEAT_INTERVAL_MS);
-            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, msg => { if(msg.type==='viewer_count_update') updateViewerCountUI(msg.count); });
+            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, msg => { 
+                if(msg.type==='viewer_count_update') {
+                    updateViewerCountUI(msg.count); 
+                    if (msg.broadcaster) {
+                        const { publisherId, realAddress, nickname, signature, signedMessage } = msg.broadcaster;
+                        if (realAddress) { userRealAddresses.set(publisherId, realAddress); }
+                        if (nickname) { userNicknames.set(publisherId, nickname); }
+                        if (realAddress && signature && signedMessage) {
+                            verifyUser(publisherId, realAddress, signature, signedMessage);
+                        }
+                        broadcasterInfoOnWatchPage.innerHTML = `Streaming now: ${getDisplayName(publisherId)}`;
+                        broadcasterInfoOnWatchPage.classList.remove('hidden');
+                        setTimeout(alignAndMatchHeight, 50); // Re-align after content changes
+                    }
+                }
+            });
         }
         function stopViewerPresence(sendLeave = false) {
             if (presenceHeartbeatInterval) clearInterval(presenceHeartbeatInterval); if (presenceSubscription) presenceSubscription.unsubscribe();
@@ -909,50 +1497,8 @@
             await stopChat();
             showPage('menu');
         }
-
-        // --- Event Listeners ---
-        goSettingsBtn.onclick = () => { document.getElementById('source-camera').dispatchEvent(new Event('change')); showPage('settings'); };
-        goWatchBtn.onclick = joinStream;
-        startBroadcastBtn.onclick = startBroadcast;
-        backBtns.forEach(btn => btn.onclick = goBackToMenu);
-        fullscreenBtn.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else canvasWrapper.requestFullscreen().catch(err => alert(`Fullscreen Error: ${err.message}`)); };
-        playPauseBtn.onclick = () => { isManuallyPaused = !isManuallyPaused; playIcon.classList.toggle('hidden', !isManuallyPaused); pauseIcon.classList.toggle('hidden', isManuallyPaused); if (audioContext) { if (isManuallyPaused) audioContext.suspend(); else audioContext.resume(); } };
-        audioSourceSelect.addEventListener('change', () => startAudioMeter(audioSourceSelect.value));
-        resolutionSlider.addEventListener('input', e => { resolutionValue.textContent = resolutions[e.target.value].text; });
-        bitrateSlider.addEventListener('input', e => { bitrateValue.textContent = `${(e.target.value / 1000000).toFixed(1)} Mbps`; });
-        framerateSlider.addEventListener('input', e => { framerateValue.textContent = `${e.target.value} fps`; });
-        audioQualitySlider.addEventListener('input', e => { audioQualityValue.textContent = audioQualities[e.target.value].text; });
-        const performanceModes = ['Lowest Latency', 'Best Quality'];
-        performanceSlider.addEventListener('input', e => { performanceValue.textContent = performanceModes[e.target.value]; });
-        keyframeIntervalSlider.addEventListener('input', e => { keyframeIntervalValue.textContent = `${(e.target.value / 1000).toFixed(1)} s`; });
-        broadcastSourceRadios.forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                broadcastSourceType = e.target.value;
-                document.querySelectorAll('label[for^="source-"]').forEach(label => { label.classList.remove('bg-zinc-600', 'text-white'); label.classList.add('hover:bg-zinc-600/50'); });
-                const selectedLabel = document.querySelector(`label[for="${e.target.id}"]`); selectedLabel.classList.add('bg-zinc-600', 'text-white'); selectedLabel.classList.remove('hover:bg-zinc-600/50');
-                const isCamera = broadcastSourceType === 'camera';
-                inputDevicesGroup.style.display = isCamera ? 'block' : 'none'; resolutionSetting.style.display = isCamera ? 'block' : 'none'; framerateSetting.style.display = isCamera ? 'block' : 'none';
-                if (isCamera) { populateDeviceLists(); } else { startBroadcastBtn.disabled = false; stopAudioMeter(); }
-            });
-        });
-        volumeSlider.addEventListener('input', e => { if (gainNode) gainNode.gain.setValueAtTime(e.target.value / 100, audioContext.currentTime); });
-        bufferSlider.addEventListener('input', e => {
-            bufferTargetMs = parseInt(e.target.value, 10); bufferValue.textContent = `${bufferTargetMs} ms`;
-            if (isPlaying) { const vDur = (videoBuffer.length > 1) ? (videoBuffer[videoBuffer.length - 1].timestamp - videoBuffer[0].timestamp) / 1000 : 0; if (bufferTargetMs > vDur) { isPlaying = false; watchStatus.textContent = "Buffering..."; statusDot.className = 'status-dot dot-yellow-flashing'; } }
-        });
-        liveModeCheckbox.addEventListener('change', e => {
-            isLiveMode = e.target.checked; latencyControls.classList.toggle('hidden', isLiveMode); directLinkIcon.classList.toggle('hidden', !isLiveMode); directLinkBrokenIcon.classList.toggle('hidden', isLiveMode);
-            currentStreamConfigId = null; videoBuffer.forEach(f => f.close()); videoBuffer = []; audioBuffer.forEach(c => c.close()); audioBuffer = []; lastRenderedFrame?.close(); lastRenderedFrame = null;
-            isPlaying = false; isManuallyPaused = false; playIcon.classList.toggle('hidden', !isManuallyPaused); pauseIcon.classList.toggle('hidden', isManuallyPaused);
-            statusDot.className = 'status-dot dot-yellow'; watchStatus.textContent = isLiveMode ? 'Switching to Direct Link...' : 'Buffering...';
-        });
-        sendBtn.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', (e) => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
-        emojiBtn.addEventListener('click', (e) => { e.stopPropagation(); emojiPicker.style.display = emojiPicker.style.display === 'flex' ? 'none' : 'flex'; });
-        document.addEventListener('click', (e) => { if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) { emojiPicker.style.display = 'none'; } });
-
-        window.addEventListener('beforeunload', () => { if(isViewing && currentUserId) streamrClient.publish(PRESENCE_STREAM_ID, { type:'leave', userId:currentUserId }); });
     </script>
 </body>
 </html>
+
 

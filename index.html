@@ -88,7 +88,44 @@
         #advanced-settings-group summary::-webkit-details-marker { display: none; }
         #advanced-settings-group .summary-arrow { transition: transform 0.2s; }
         #advanced-settings-group[open] .summary-arrow { transform: rotate(90deg); }
-
+        .stream-item {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #3f3f46;
+            transition: background-color 0.2s;
+        }
+        .stream-item:hover {
+            background-color: #27272a;
+        }
+        .stream-item.occupied {
+            opacity: 0.7;
+        }
+        .stream-item.occupied:hover {
+            background-color: #121212;
+            cursor: not-allowed;
+        }
+        .stream-item.occupied .watch-btn {
+            display: none;
+        }
+        .stream-item .watch-btn, .stream-item .broadcast-btn {
+            transition: background-color 0.2s;
+        }
+        .stream-item .watch-btn:hover {
+            background-color: #1d4ed8;
+        }
+        .stream-item .broadcast-btn:hover {
+            background-color: #1d4ed8;
+        }
+        .stream-item-live {
+            cursor: pointer;
+        }
+        .stream-item-free {
+            cursor: pointer;
+        }
         /* Chat App Styles (Twitch/YouTube Style) */
         .message-entry {
             animation: fadeIn 0.3s ease-in-out;
@@ -142,33 +179,18 @@
         <!-- Video Column -->
         <div id="video-column" class="lg:col-span-5 w-full flex justify-center">
              <div class="w-full max-w-3xl">
-                <!-- Main Menu Page -->
-                <div id="menu-page" class="page active">
-                    <div class="text-center">
-                        <h1 class="text-4xl md:text-5xl font-bold text-white">Decentralized Stream</h1>
-                        <h2 class="text-2xl font-bold text-zinc-400 mb-4">Powered by Streamr</h2>
+                
+                <!-- Lobby Page (New) -->
+                <div id="lobby-page" class="page active">
+                    <div class="text-center mb-8">
+                        <h1 class="text-3xl font-bold text-white">Stream Rooms</h1>
+                        <p id="lobby-status" class="text-zinc-400 mt-1">Loading available rooms...</p>
                     </div>
-                    <div class="mt-10 bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8">
-                        <div class="grid md:grid-cols-2 gap-6 text-center">
-                            <div class="flex flex-col items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-zinc-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                <h3 class="text-xl font-bold text-white mb-4">Broadcast</h3>
-                                <button id="go-settings-btn" class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                                    Start Broadcasting
-                                </button>
-                            </div>
-                            <div class="flex flex-col items-center">
-                               <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-zinc-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                                <h3 class="text-xl font-bold text-white mb-4">Watch</h3>
-                                <button id="go-watch-btn" class="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                                    Watch Stream
-                                </button>
-                            </div>
-                        </div>
-                         <p id="menu-status" class="text-center text-zinc-500 text-sm mt-6">Connecting to the P2P network...</p>
+                    <div id="stream-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Stream items will be dynamically added here -->
                     </div>
                 </div>
-                
+
                 <!-- Broadcast Settings Page -->
                 <div id="settings-page" class="page">
                      <div class="text-center mb-8">
@@ -176,6 +198,10 @@
                         <p class="text-zinc-400 mt-1">Fine-tune your stream for the best performance.</p>
                     </div>
                     <div class="bg-zinc-800 border border-zinc-700 rounded-xl p-6 md:p-8 space-y-4 divide-y divide-zinc-700/50 text-left max-w-md mx-auto">
+                        <div class="pt-2">
+                            <h3 class="text-sm font-medium text-zinc-300 mb-2">Room Name</h3>
+                            <input type="text" id="roomNameInput" class="w-full bg-zinc-700 border border-zinc-600 rounded-lg p-2 mb-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter a name for your room (max 30 chars)..." maxlength="30">
+                        </div>
                         <div class="pt-2">
                             <h3 class="text-sm font-medium text-zinc-300 mb-2">Source</h3>
                             <div class="grid grid-cols-2 gap-2 rounded-lg bg-zinc-700 p-1">
@@ -246,7 +272,7 @@
                                             <div class="tooltip-icon">
                                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
                                             </div>
-                                            <span class="tooltip-text">'Lowest Latency' is faster for real-time interaction. 'Best Quality' prioritizes a clearer image, which might add a small delay.</span>
+                                            <span class="tooltip-text !w-56 !-ml-28">Lowest Latency is faster for real-time interaction. Best Quality prioritizes a clearer image, which might add a small delay.</span>
                                         </div>
                                         <span id="performanceValue" class="text-sm font-mono text-zinc-400">Lowest Latency</span>
                                     </div>
@@ -259,7 +285,7 @@
                                              <div class="tooltip-icon">
                                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-zinc-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
                                             </div>
-                                            <span class="tooltip-text">How often a full video frame is sent. Shorter intervals can improve stream recovery on unstable connections but use more data.</span>
+                                            <span class="tooltip-text !w-56 !-ml-28">How often a full video frame is sent. Shorter intervals can improve stream recovery on unstable connections but use more data.</span>
                                         </div>
                                         <span id="keyframeIntervalValue" class="text-sm font-mono text-zinc-400">2.0 s</span>
                                     </div>
@@ -270,8 +296,8 @@
                     </div>
                     <p id="settings-status" class="text-center text-red-400 text-sm mt-4 min-h-[1.25rem]"></p>
                     <div class="mt-4 flex justify-center gap-4">
-                        <button id="back-to-menu-settings" class="bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Back</button>
-                        <button id="start-broadcast-btn" class="bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-2 px-5 rounded-lg transition-colors">Start Broadcasting</button>
+                        <button id="back-to-lobby-btn-settings" class="bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Back</button>
+                        <button id="start-broadcast-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-lg transition-colors">Start Broadcasting</button>
                     </div>
                 </div>
 
@@ -301,7 +327,7 @@
                         <video id="localVideo" autoplay playsinline muted class="w-full h-auto bg-zinc-900 rounded-md camera-view"></video>
                     </div>
                     <div class="w-full flex justify-center">
-                        <button id="back-to-menu-broadcast" class="mt-8 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Stop and Go Back</button>
+                        <button id="back-to-lobby-btn" class="mt-8 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Stop and Go Back</button>
                     </div>
                 </div>
 
@@ -309,7 +335,7 @@
                 <div id="watch-page" class="page">
                     <!-- Player Header: Contains all metadata about the stream -->
                     <div id="player-header" class="text-center mb-6">
-                        <h1 class="text-2xl font-bold text-white">Watching Stream</h1>
+                        <h1 class="text-2xl font-bold text-white"><span id="roomNameOnWatchPage">Watching Stream</span></h1>
                         <div id="broadcaster-info-on-watch-page" class="text-zinc-400 text-sm mt-2 hidden"></div>
                         <div class="flex items-center justify-center gap-4 mt-1 text-zinc-400 text-sm">
                             <div id="watch-status">...</div>
@@ -330,7 +356,7 @@
                                 <span id="statusDot" class="status-dot dot-red" title="Disconnected"></span>
                             </div>
                              <div class="absolute bottom-4 left-4 right-4 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                <button id="back-to-menu-watch" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Stop and Go Back">
+                                <button id="back-to-lobby-btn" class="p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-700/70 transition-colors" title="Stop and Go Back">
                                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
                                     </svg>
@@ -340,8 +366,7 @@
                                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
                                     </svg>
                                     <svg id="pauseIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                    </svg>
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
                                 </button>
                                 <div class="flex items-center gap-2 w-24">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
@@ -453,17 +478,18 @@
 
     <script>
         // --- Stream Constants ---
-        const STREAM_BASE = '0xd5a8024414f59cf0c453c35fc3655a31251645f6';
-        const VIDEO_STREAM_ID = `${STREAM_BASE}/video1`;
-        const AUDIO_STREAM_ID = `${STREAM_BASE}/audio1`;
-        const PRESENCE_STREAM_ID = `${STREAM_BASE}/app11`;
-        const CHAT_STREAM_ID = `${STREAM_BASE}/app12`;
+        const LOBBY_STREAM_ID = '0x9b365dd30a9a15bf4b4c6814970290ea7fbd6e4b/lobby';
+        const VIDEO_STREAM_BASE = '0x9b365dd30a9a15bf4b4c6814970290ea7fbd6e4b/app1';
+        const AUDIO_STREAM_BASE = '0x9b365dd30a9a15bf4b4c6814970290ea7fbd6e4b/app2';
+        const PRESENCE_STREAM_BASE = '0x9b365dd30a9a15bf4b4c6814970290ea7fbd6e4b/app3';
+        const CHAT_STREAM_BASE = '0x9b365dd30a9a15bf4b4c6814970290ea7fbd6e4b/app4';
+        const PARTITIONS = 99; // Total number of available partitions
         const MAX_MESSAGES = 100;
         const LIVE_BUFFER_TARGET_MS = 250; // Increased for audio stability
 
         // --- UI Element Variables (declared here, assigned in main) ---
-        let mainContainer, videoColumn, pages, goSettingsBtn, goWatchBtn, startBroadcastBtn, backBtns, localVideo, remoteCanvas,
-            canvasWrapper, broadcastStatus, watchStatus, statusDot, menuStatus, fullscreenBtn, playPauseBtn, playIcon, pauseIcon,
+        let mainContainer, videoColumn, pages, startBroadcastBtn, backBtns, localVideo, remoteCanvas,
+            canvasWrapper, broadcastStatus, watchStatus, statusDot, fullscreenBtn, playPauseBtn, playIcon, pauseIcon,
             viewerCountBroadcaster, viewerCountBroadcasterValue, viewerCountWatcher, viewerCountWatcherValue,
             broadcastSourceRadios, inputDevicesGroup, videoQualityGroup, videoSourceSelect, audioSourceSelect, audioMeterCanvas,
             resolutionSlider, resolutionValue, resolutionSetting, framerateSetting, bitrateSlider, bitrateValue, framerateSlider,
@@ -471,7 +497,8 @@
             keyframeIntervalValue, volumeSlider, bufferSlider, bufferValue, latencyControls, canvasContext, loginModal, loginContent, loadingContent, connectWalletBtn, guestBtn,
             loadingInstructions, chatContainer, messageInput, sendBtn, emojiBtn, messagesContainer, emojiPicker,
             nicknameModal, nicknameInput, saveNicknameBtn, resetNicknameBtn, nicknameBtn, chatUserId, settingsStatus, nicknameBtnBroadcast, broadcasterUserId,
-            broadcasterInfoOnWatchPage, toggleLatencyControlsBtn, latencyControlsCollapsible, toggleLatencyArrow;
+            broadcasterInfoOnWatchPage, toggleLatencyControlsBtn, latencyControlsCollapsible, toggleLatencyArrow, lobbyPage, streamListContainer, lobbyStatus, roomNameOnWatchPage,
+            roomNameInput; // New variable for the room name input field
 
         const emojis = [
             '😂', '😭', '❤️', '👍', '👎', '👏', '🔥', '💯', '🤔', '🙏', '🤯', '🥳', '😎', '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😊', '😇', '🙂', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
@@ -497,20 +524,24 @@
         let streamrClient;
         let videoEncoder, audioEncoder, videoDecoder, audioDecoder;
         let localStream, audioContext, gainNode;
-        let videoSubscription, audioSubscription, presenceSubscription, chatSubscription;
+        let videoSubscription, audioSubscription, presenceSubscription, chatSubscription, lobbySubscription;
         let isBroadcasting = false, isViewing = false;
         let mySessionId = '';
         let myRealAddress = '';
         let mySignature = ''; // To store the user's signature
         let signedMessageForVerification = ''; // To store the message that was signed
         let myNickname = '';
+        let myRoomName = ''; // New state variable for the room name
         let userNicknames = new Map();
+        let roomNames = new Map(); // Map from partition to room name
         let verifiedUsers = new Map(); // To cache verification results
         let lastKeyFrameTimestamp = 0, lastChunkReceivedTimestamp = 0, streamHealthInterval = null;
         const STALE_STREAM_TIMEOUT_MS = 3000;
         let broadcastSourceType = 'camera';
         let audioMeter = { context: null, stream: null, analyser: null, animationId: null };
-        let currentUserId = null, viewers = new Map();
+        let currentUserId = null;
+        let myPartition = null; // My active partition number (1-99)
+        const activePartitions = new Map(); // Map from partition number to stream info
         let presenceHeartbeatInterval = null, broadcasterPresenceInterval = null;
         const VIEWER_TIMEOUT_MS = 15000, HEARTBEAT_INTERVAL_MS = 10000;
         let detailedWatchStatus = 'Looking for a broadcast...';
@@ -530,7 +561,144 @@
             '#FF8A65', '#4FC3F7', '#AED581', '#F06292',
             '#BA68C8', '#FFD54F', '#4DB6AC', '#7986CB'
         ];
+        
+        // --- Dynamic Stream ID Generation ---
+        // Generates a stream ID for a specific partition
+        function getStreamId(type, partition) {
+            let streamBase;
+            switch(type) {
+                case 'video': streamBase = VIDEO_STREAM_BASE; break;
+                case 'audio': streamBase = AUDIO_STREAM_BASE; break;
+                case 'presence': streamBase = PRESENCE_STREAM_BASE; break;
+                case 'chat': streamBase = CHAT_STREAM_BASE; break;
+                default: throw new Error(`Unknown stream type: ${type}`);
+            }
+            return { streamId: streamBase, partition: partition };
+        }
+        // Gets the global stream ID for lobby messages
+        function getGlobalStreamId(type) {
+            if (type === 'lobby') {
+                return LOBBY_STREAM_ID;
+            }
+            // Fallback for other global streams if needed, though lobby is the only one right now
+            return `${STREAM_BASE}/${type}`;
+        }
 
+        // --- Dynamic Room/Lobby Logic ---
+        function updateStreamListUI() {
+            streamListContainer.innerHTML = ''; // Clear the list
+            let hasActiveStreams = false;
+            for (let i = 1; i <= PARTITIONS; i++) {
+                const partitionInfo = activePartitions.get(i);
+                // Check if the stream is currently active
+                const isLive = partitionInfo && partitionInfo.broadcaster && (Date.now() - partitionInfo.lastSeen < VIEWER_TIMEOUT_MS);
+                const isFree = !isLive; // A partition is free if it's not live.
+
+                const streamItem = document.createElement('div');
+                streamItem.className = `stream-item`;
+                
+                let dotClass = isLive ? 'dot-green' : 'dot-red';
+                let dotTitle = isLive ? 'Live' : 'Offline';
+                if (!isLive && partitionInfo && (Date.now() - partitionInfo.lastSeen < 60000)) {
+                    dotClass = 'dot-yellow';
+                    dotTitle = 'Last seen recently...';
+                }
+
+                // Get the room name from the map, or default to "Room {i}"
+                const roomName = roomNames.get(i) || `Room ${i}`;
+
+                const streamItemContent = `
+                    <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center gap-2">
+                            <span class="status-dot ${dotClass}" title="${dotTitle}"></span>
+                            <div class="flex flex-col">
+                                <span class="font-semibold text-white">${sanitizeHTML(roomName)}</span>
+                                ${isLive ? `<span class="text-sm text-zinc-400">by ${getDisplayName(partitionInfo.broadcaster.publisherId)}</span>` : `<span class="text-sm text-zinc-400">Free</span>`}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                             <div class="flex items-center gap-1 text-sm text-zinc-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                                <span>${partitionInfo ? partitionInfo.viewerCount : 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between w-full mt-4">
+                        <button class="broadcast-btn w-[48%] bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" ${isFree ? '' : 'disabled'}>
+                            Broadcast
+                        </button>
+                        <button class="watch-btn w-[48%] bg-zinc-700 text-white font-bold py-2 px-4 rounded-lg transition-colors hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed" ${isLive ? '' : 'disabled'}>
+                            Watch
+                        </button>
+                    </div>
+                `;
+                streamItem.innerHTML = streamItemContent;
+                
+                const broadcastBtn = streamItem.querySelector('.broadcast-btn');
+                if(isFree){ broadcastBtn.onclick = () => createNewStream(i); }
+
+                const watchBtn = streamItem.querySelector('.watch-btn');
+                if(isLive){ watchBtn.onclick = () => joinStream(i); }
+
+                streamListContainer.appendChild(streamItem);
+                
+                if (isLive) {
+                    hasActiveStreams = true;
+                }
+            }
+            lobbyStatus.textContent = hasActiveStreams ? 'Select a room to watch or start your own stream.' : 'No active streams. Be the first to start one!';
+        }
+        
+        async function startLobby() {
+            showPage('lobby');
+            updateStreamListUI(); // Initial rendering of all 99 partitions
+            
+            if (lobbySubscription) { await lobbySubscription.unsubscribe(); }
+            
+            lobbySubscription = await streamrClient.subscribe(LOBBY_STREAM_ID, (message, metadata) => {
+                if (message.type === 'stream_update') {
+                    const partition = message.partition;
+                    if (message.broadcaster) {
+                         const { publisherId, realAddress, nickname, signature, signedMessage, roomName } = message.broadcaster;
+                         if (realAddress) { userRealAddresses.set(publisherId, realAddress); }
+                         if (nickname) { userNicknames.set(publisherId, nickname); }
+                         if (roomName) { roomNames.set(partition, roomName); }
+                         if (realAddress && signature && signedMessage) { verifyUser(publisherId, realAddress, signature, signedMessage); }
+                    } else {
+                        roomNames.delete(partition);
+                    }
+                    activePartitions.set(partition, {
+                        broadcaster: message.broadcaster,
+                        viewerCount: message.viewerCount,
+                        lastSeen: Date.now()
+                    });
+                    updateStreamListUI();
+                }
+            });
+
+            // Periodically check for stale streams
+            setInterval(() => {
+                let listChanged = false;
+                activePartitions.forEach((streamInfo, partition) => {
+                    // Remove broadcaster info if heartbeat is too old
+                    if (Date.now() - streamInfo.lastSeen > 10000) { // 10s timeout
+                        activePartitions.set(partition, { ...streamInfo, broadcaster: null, viewerCount: 0});
+                        roomNames.delete(partition);
+                        listChanged = true;
+                    }
+                });
+                if (listChanged) {
+                    updateStreamListUI();
+                }
+            }, 5000);
+        }
+
+        function createNewStream(partition) {
+            myPartition = partition;
+            initiateBroadcastFlow();
+        }
+
+        // --- Helper Functions ---
         function simpleHash(str) {
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
@@ -562,7 +730,7 @@
             const isVerified = verifiedUsers.get(getColorKey(publisherId));
 
             if (realAddress) { // Wallet user
-                const shortAddress = `(${realAddress.slice(0, 6)}...${realAddress.slice(-4)})`;
+                const shortAddress = `(${realAddress.slice(0, 0)}...${realAddress.slice(-4)})`;
                 const verificationMark = isVerified 
                     ? ` <span class="tooltip-container">
                            <span class="cursor-help">✅</span>
@@ -614,7 +782,7 @@
                 loadingContent.classList.remove('hidden');
             } else { // 'buttons'
                 loginContent.classList.remove('hidden');
-                loadingContent.add('hidden');
+                loadingContent.classList.add('hidden');
             }
         }
 
@@ -664,34 +832,34 @@
             const chatBox = document.querySelector('#chat-container > div');
             if (!chatBox || chatContainer.classList.contains('hidden')) { return; }
 
-            // Watch page logic (remains unchanged)
-            if (document.getElementById('watch-page').classList.contains('active')) {
-                const playerHeader = document.getElementById('player-header');
-                const playerContainer = document.getElementById('player-container');
+            // Target the specific components for alignment, not the whole page or footer
+            const playerHeader = document.getElementById('player-header');
+            const playerContainer = document.getElementById('player-container');
+            
+            // Only proceed if we are on the watch page and the elements exist
+            if (document.getElementById('watch-page').classList.contains('active') && playerHeader && playerContainer) {
+                const headerRect = playerHeader.getBoundingClientRect();
+                const containerRect = playerContainer.getBoundingClientRect();
+                const mainContainerRect = document.getElementById('main-container').getBoundingClientRect();
+
+                // The top alignment point is the top of the header
+                const paddingTop = headerRect.top - mainContainerRect.top;
                 
-                if (playerHeader && playerContainer) {
-                    const headerRect = playerHeader.getBoundingClientRect();
-                    const containerRect = playerContainer.getBoundingClientRect();
+                // The total height is the sum of the header and the main player container,
+                // ignoring the footer. This is the distance from the top of the header
+                // to the bottom of the player container.
+                const totalHeight = containerRect.bottom - headerRect.top;
+
+                chatContainer.style.paddingTop = `${paddingTop}px`;
+                chatBox.style.height = `${totalHeight}px`;
+            } else {
+                 // Fallback for broadcast page, which has a simpler structure
+                const activePlayerBox = document.querySelector('#broadcast-page .bg-zinc-800');
+                if (activePlayerBox) {
+                    const playerRect = activePlayerBox.getBoundingClientRect();
                     const mainContainerRect = document.getElementById('main-container').getBoundingClientRect();
-
-                    const paddingTop = headerRect.top - mainContainerRect.top;
-                    const totalHeight = containerRect.bottom - headerRect.top;
-
-                    chatContainer.style.paddingTop = `${paddingTop > 0 ? paddingTop : 0}px`;
-                    chatBox.style.height = `${totalHeight}px`;
-                }
-            } 
-            // Broadcast page logic (NEW and specific)
-            else if (document.getElementById('broadcast-page').classList.contains('active')) {
-                const playerBox = document.querySelector('#broadcast-page .bg-zinc-800');
-                if (playerBox) {
-                    const playerRect = playerBox.getBoundingClientRect();
-                    const chatContainerRect = chatContainer.getBoundingClientRect();
-                    
-                    // Calculate the required padding to align the top of the chat box with the top of the player box
-                    const paddingTop = playerRect.top - chatContainerRect.top;
-                    
-                    chatContainer.style.paddingTop = `${paddingTop > 0 ? paddingTop : 0}px`; // Ensure padding is not negative
+                    const paddingTop = playerRect.top - mainContainerRect.top;
+                    chatContainer.style.paddingTop = `${paddingTop}px`;
                     chatBox.style.height = `${playerRect.height}px`;
                 }
             }
@@ -851,7 +1019,7 @@
                     signature: mySignature, // Include the signature
                     signedMessage: signedMessageForVerification // Include the message that was signed
                 };
-                await streamrClient.publish(CHAT_STREAM_ID, payload);
+                await streamrClient.publish(getStreamId('chat', myPartition), payload);
                 messageInput.value = ''; messageInput.focus();
             } catch(error){
                 console.error("Failed to send message:", error);
@@ -861,7 +1029,7 @@
         async function startChat() {
             if (chatSubscription) return;
             try {
-                chatSubscription = await streamrClient.subscribe(CHAT_STREAM_ID, (message, metadata) => addMessageToUI(message, metadata));
+                chatSubscription = await streamrClient.subscribe(getStreamId('chat', myPartition), (message, metadata) => addMessageToUI(message, metadata));
             } catch(error){
                 console.error("Error starting chat:", error);
             }
@@ -874,7 +1042,7 @@
         async function initializeApp(authOptions = {}) {
             try {
                 setLoginModalState('loading');
-                menuStatus.textContent = 'Connecting to the P2P network...';
+                loadingInstructions.textContent = 'Connecting to the P2P network...';
                 
                 streamrClient = new StreamrClient(authOptions);
                 await streamrClient.connect();
@@ -887,19 +1055,19 @@
                 }
                 const nicknameKey = myRealAddress || mySessionId;
                 myNickname = sessionStorage.getItem(`nickname_${nicknameKey}`) || '';
+                myRoomName = sessionStorage.getItem(`roomName_${mySessionId}`) || ''; // Load saved room name
                 if(myNickname) {
                     userNicknames.set(mySessionId, myNickname);
                 }
-                chatUserId.innerHTML = getDisplayName(mySessionId);
-                if (broadcasterUserId) {
-                    broadcasterUserId.innerHTML = getDisplayName(mySessionId);
-                }
+                
+                // Since the UI now has a nickname button in chat, we can set the display name there
+                // And for the broadcast page, we have a separate element
+                if(chatUserId) chatUserId.innerHTML = getDisplayName(mySessionId);
+                if (broadcasterUserId) broadcasterUserId.innerHTML = getDisplayName(mySessionId);
+                
 
                 loginModal.classList.add('hidden');
-                const connectedId = myRealAddress ? `${myRealAddress.slice(0, 6)}...${myRealAddress.slice(-4)}` : 'Guest';
-                menuStatus.textContent = `Connected as: ${connectedId}. Choose an option.`;
-               // goSettingsBtn.disabled = false;
-                goWatchBtn.disabled = false;
+                startLobby();
             } catch (error) {
                 console.error('Failed to initialize Streamr client:', error);
                 alert(`Error connecting: ${error.message}. Please refresh.`);
@@ -919,10 +1087,12 @@
             };
 
             // Nickname
-            nicknameBtn.onclick = () => {
-                nicknameInput.value = myNickname;
-                nicknameModal.classList.remove('hidden');
-            };
+            if (nicknameBtn) {
+                nicknameBtn.onclick = () => {
+                    nicknameInput.value = myNickname;
+                    nicknameModal.classList.remove('hidden');
+                };
+            }
             if (nicknameBtnBroadcast) {
                 nicknameBtnBroadcast.onclick = () => {
                     nicknameInput.value = myNickname;
@@ -935,10 +1105,8 @@
                 const nicknameKey = myRealAddress || mySessionId;
                 sessionStorage.setItem(`nickname_${nicknameKey}`, myNickname);
                 userNicknames.set(mySessionId, myNickname);
-                chatUserId.innerHTML = getDisplayName(mySessionId);
-                if (broadcasterUserId) {
-                    broadcasterUserId.innerHTML = getDisplayName(mySessionId);
-                }
+                if(chatUserId) chatUserId.innerHTML = getDisplayName(mySessionId);
+                if (broadcasterUserId) broadcasterUserId.innerHTML = getDisplayName(mySessionId);
                 nicknameModal.classList.add('hidden');
             };
             resetNicknameBtn.onclick = () => {
@@ -946,10 +1114,8 @@
                 const nicknameKey = myRealAddress || mySessionId;
                 sessionStorage.removeItem(`nickname_${nicknameKey}`);
                 userNicknames.delete(mySessionId);
-                chatUserId.innerHTML = getDisplayName(mySessionId);
-                if (broadcasterUserId) {
-                    broadcasterUserId.innerHTML = getDisplayName(mySessionId);
-                }
+                if(chatUserId) chatUserId.innerHTML = getDisplayName(mySessionId);
+                if (broadcasterUserId) broadcasterUserId.innerHTML = getDisplayName(mySessionId);
                 nicknameModal.classList.add('hidden');
             };
             nicknameModal.onclick = (e) => {
@@ -957,17 +1123,16 @@
             };
 
             // Navigation
-            goSettingsBtn.onclick = initiateBroadcastFlow;
-            goWatchBtn.onclick = joinStream;
             startBroadcastBtn.onclick = startBroadcast;
-            backBtns.forEach(btn => btn.onclick = goBackToMenu);
-            
+            const backToLobbyBtns = document.querySelectorAll('#back-to-lobby-btn, #back-to-lobby-btn-settings');
+            backToLobbyBtns.forEach(btn => btn.onclick = goBackToLobby);
+
             // Watch Page Controls
-            fullscreenBtn.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else canvasWrapper.requestFullscreen().catch(err => alert(`Fullscreen Error: ${err.message}`)); };
-            playPauseBtn.onclick = () => {
+            if (fullscreenBtn) fullscreenBtn.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else canvasWrapper.requestFullscreen().catch(err => alert(`Fullscreen Error: ${err.message}`)); };
+            if (playPauseBtn) playPauseBtn.onclick = () => {
                 isManuallyPaused = !isManuallyPaused;
-                playIcon.classList.toggle('hidden', !isManuallyPaused);
-                pauseIcon.classList.toggle('hidden', isManuallyPaused);
+                if(playIcon) playIcon.classList.toggle('hidden', !isManuallyPaused);
+                if(pauseIcon) pauseIcon.classList.toggle('hidden', isManuallyPaused);
                 if (audioContext) {
                     if (isManuallyPaused) {
                         audioContext.suspend();
@@ -979,9 +1144,9 @@
                     }
                 }
             };
-            volumeSlider.addEventListener('input', e => { if (gainNode) gainNode.gain.setValueAtTime(e.target.value / 100, audioContext.currentTime); });
+            if (volumeSlider) volumeSlider.addEventListener('input', e => { if (gainNode) gainNode.gain.setValueAtTime(e.target.value / 100, audioContext.currentTime); });
             
-            bufferSlider.addEventListener('input', e => {
+            if (bufferSlider) bufferSlider.addEventListener('input', e => {
                 const newBufferValue = parseInt(e.target.value, 10);
                 effectiveBufferTargetMs = newBufferValue;
                 
@@ -1003,53 +1168,56 @@
 
 
             // Settings Page Controls
-            audioSourceSelect.addEventListener('change', () => startAudioMeter(audioSourceSelect.value));
-            resolutionSlider.addEventListener('input', e => { resolutionValue.textContent = resolutions[e.target.value].text; });
-            bitrateSlider.addEventListener('input', e => { bitrateValue.textContent = `${(e.target.value / 1000000).toFixed(1)} Mbps`; });
-            framerateSlider.addEventListener('input', e => { framerateValue.textContent = `${e.target.value} fps`; });
-            audioQualitySlider.addEventListener('input', e => { audioQualityValue.textContent = audioQualities[e.target.value].text; });
+            if (audioSourceSelect) audioSourceSelect.addEventListener('change', () => startAudioMeter(audioSourceSelect.value));
+            if (resolutionSlider) resolutionSlider.addEventListener('input', e => { resolutionValue.textContent = resolutions[e.target.value].text; });
+            if (bitrateSlider) bitrateSlider.addEventListener('input', e => { bitrateValue.textContent = `${(e.target.value / 1000000).toFixed(1)} Mbps`; });
+            if (framerateSlider) framerateSlider.addEventListener('input', e => { framerateValue.textContent = `${e.target.value} fps`; });
+            if (audioQualitySlider) audioQualitySlider.addEventListener('input', e => { audioQualityValue.textContent = audioQualities[e.target.value].text; });
             const performanceModes = ['Lowest Latency', 'Best Quality'];
-            performanceSlider.addEventListener('input', e => { performanceValue.textContent = performanceModes[e.target.value]; });
-            keyframeIntervalSlider.addEventListener('input', e => { keyframeIntervalValue.textContent = `${(e.target.value / 1000).toFixed(1)} s`; });
-            broadcastSourceRadios.forEach(radio => {
+            if (performanceSlider) performanceSlider.addEventListener('input', e => { performanceValue.textContent = performanceModes[e.target.value]; });
+            if (keyframeIntervalSlider) keyframeIntervalSlider.addEventListener('input', e => { keyframeIntervalValue.textContent = `${(e.target.value / 1000).toFixed(1)} s`; });
+            if (broadcastSourceRadios) broadcastSourceRadios.forEach(radio => {
                 radio.addEventListener('change', (e) => {
                     broadcastSourceType = e.target.value;
                     document.querySelectorAll('label[for^="source-"]').forEach(label => { label.classList.remove('bg-zinc-600', 'text-white'); label.classList.add('hover:bg-zinc-600/50'); });
                     const selectedLabel = document.querySelector(`label[for="${e.target.id}"]`); selectedLabel.classList.add('bg-zinc-600', 'text-white'); selectedLabel.classList.remove('hover:bg-zinc-600/50');
                     const isCamera = broadcastSourceType === 'camera';
-                    inputDevicesGroup.style.display = isCamera ? 'block' : 'none'; resolutionSetting.style.display = isCamera ? 'block' : 'none'; framerateSetting.style.display = isCamera ? 'block' : 'none';
+                    if (inputDevicesGroup) inputDevicesGroup.style.display = isCamera ? 'block' : 'none';
+                    if (videoQualityGroup) videoQualityGroup.style.display = 'block'; // Always show video quality group
+                    if (resolutionSetting) resolutionSetting.style.display = isCamera ? 'block' : 'none';
+                    if (framerateSetting) framerateSetting.style.display = isCamera ? 'block' : 'none';
                     if (isCamera) { 
                         populateDeviceLists(); 
                     } else { 
-                        startBroadcastBtn.disabled = false; 
+                        if (startBroadcastBtn) startBroadcastBtn.disabled = false; 
                         stopAudioMeter(); 
                     }
                 });
             });
             
             // Chat Controls
-            sendBtn.addEventListener('click', sendMessage);
-            messageInput.addEventListener('keypress', (e) => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
-            emojiBtn.addEventListener('click', (e) => { e.stopPropagation(); emojiPicker.style.display = emojiPicker.style.display === 'flex' ? 'none' : 'flex'; });
+            if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+            if (messageInput) messageInput.addEventListener('keypress', (e) => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
+            if (emojiBtn) emojiBtn.addEventListener('click', (e) => { e.stopPropagation(); if (emojiPicker) emojiPicker.style.display = emojiPicker.style.display === 'flex' ? 'none' : 'flex'; });
             emojis.forEach(e => {
                 const span = document.createElement('span'); span.textContent = e;
-                span.addEventListener('click', () => { messageInput.value += e; messageInput.focus(); emojiPicker.style.display = 'none'; });
-                emojiPicker.appendChild(span);
+                span.addEventListener('click', () => { if(messageInput) messageInput.value += e; if(messageInput) messageInput.focus(); if(emojiPicker) emojiPicker.style.display = 'none'; });
+                if (emojiPicker) emojiPicker.appendChild(span);
             });
             
             // Global Listeners
             document.addEventListener('click', (e) => { if (emojiPicker && !emojiPicker.contains(e.target) && e.target !== emojiBtn) { emojiPicker.style.display = 'none'; } });
             window.addEventListener('resize', alignAndMatchHeight);
-            window.addEventListener('beforeunload', () => { if(isViewing && currentUserId) streamrClient.publish(PRESENCE_STREAM_ID, { type:'leave', userId:currentUserId }); });
+            window.addEventListener('beforeunload', () => { if(isViewing && currentUserId) streamrClient.publish(getStreamId('presence', myPartition), { type:'leave', userId:currentUserId }); });
         }
         
         async function initiateBroadcastFlow() {
-            const originalStatus = menuStatus.textContent;
-            menuStatus.textContent = 'Requesting permissions...';
+            if(lobbyStatus) lobbyStatus.textContent = 'Requesting permissions...';
             try {
                 const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                tempStream.getTracks().forEach(track => track.stop());
+                tempStream.getTracks().forEach(track => tempStream.removeTrack(track)); // Stop immediately
                 showPage('settings');
+                if (roomNameInput) roomNameInput.value = ''; // Clear input on page load
 
                 // Explicitly reset the radio button state to ensure the 'change' event fires correctly.
                 const cameraRadio = document.getElementById('source-camera');
@@ -1062,11 +1230,11 @@
             } catch (err) {
                 console.error("Permission error on initial request:", err);
                 if (err.name === 'NotAllowedError') {
-                    menuStatus.textContent = 'Permission denied. Please allow access in browser settings.';
+                    if(lobbyStatus) lobbyStatus.textContent = 'Permission denied. Please allow access in browser settings.';
                 } else {
-                     menuStatus.textContent = `Error accessing devices: ${err.name}`;
+                    if(lobbyStatus) lobbyStatus.textContent = `An error occurred: ${err.name}.`;
                 }
-                setTimeout(() => { menuStatus.textContent = originalStatus; }, 3000);
+                setTimeout(() => { if(lobbyStatus) lobbyStatus.textContent = 'Select a room to watch or start your own stream.'; }, 3000);
             }
         }
 
@@ -1074,18 +1242,14 @@
             // --- Initialize UI Elements ---
             mainContainer = document.getElementById('main-container');
             videoColumn = document.getElementById('video-column');
-            pages = { menu: document.getElementById('menu-page'), settings: document.getElementById('settings-page'), broadcast: document.getElementById('broadcast-page'), watch: document.getElementById('watch-page'), };
-            goSettingsBtn = document.getElementById('go-settings-btn');
-            goWatchBtn = document.getElementById('go-watch-btn');
+            pages = { lobby: document.getElementById('lobby-page'), settings: document.getElementById('settings-page'), broadcast: document.getElementById('broadcast-page'), watch: document.getElementById('watch-page') };
             startBroadcastBtn = document.getElementById('start-broadcast-btn');
-            backBtns = [ document.getElementById('back-to-menu-broadcast'), document.getElementById('back-to-menu-watch'), document.getElementById('back-to-menu-settings'), ];
             localVideo = document.getElementById('localVideo');
             remoteCanvas = document.getElementById('remoteCanvas');
             canvasWrapper = document.getElementById('canvas-wrapper');
             broadcastStatus = document.getElementById('broadcast-status');
             watchStatus = document.getElementById('watch-status');
             statusDot = document.getElementById('statusDot');
-            menuStatus = document.getElementById('menu-status');
             fullscreenBtn = document.getElementById('fullscreen-btn');
             playPauseBtn = document.getElementById('playPauseBtn');
             playIcon = document.getElementById('playIcon');
@@ -1144,7 +1308,12 @@
             toggleLatencyControlsBtn = document.getElementById('toggle-latency-controls-btn');
             latencyControlsCollapsible = document.getElementById('latency-controls-collapsible');
             toggleLatencyArrow = document.getElementById('toggle-latency-arrow');
-            
+            lobbyPage = document.getElementById('lobby-page');
+            streamListContainer = document.getElementById('stream-list-container');
+            lobbyStatus = document.getElementById('lobby-status');
+            roomNameInput = document.getElementById('roomNameInput'); // Initialize new element
+            roomNameOnWatchPage = document.getElementById('roomNameOnWatchPage'); // Initialize new element
+
             // --- Setup Event Listeners ---
             setupEventListeners();
         }
@@ -1155,6 +1324,14 @@
         async function startBroadcast() {
             stopAudioMeter();
             settingsStatus.textContent = '';
+            
+            const roomName = sanitizeHTML(roomNameInput.value.trim());
+            if (roomName.length === 0) {
+                settingsStatus.textContent = 'Please enter a name for your room.';
+                return;
+            }
+            myRoomName = roomName; // Save the name to state
+
             if (!window.VideoEncoder || !window.AudioEncoder) {
                 settingsStatus.textContent = 'Error: WebCodecs API not supported in this browser.';
                 return;
@@ -1168,7 +1345,7 @@
                     localVideo.classList.add('camera-view');
                 } else {
                     localStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor:"always" }, audio: audioConstraints });
-                    localVideo.classList.remove('camera-view'); localStream.getVideoTracks()[0].onended = goBackToMenu;
+                    localVideo.classList.remove('camera-view'); localStream.getVideoTracks()[0].onended = goBackToLobby;
                 }
                 const hasVideo = localStream.getVideoTracks().length > 0, hasAudio = localStream.getAudioTracks().length > 0;
                 if(!hasVideo && !hasAudio) {
@@ -1184,7 +1361,7 @@
                     vSettings = { width:trackSettings.width, height:trackSettings.height, framerate:fps, bitrate }; // Use the desired FPS
                     const vConfig = { codec:'avc1.64002A', width:vSettings.width, height:vSettings.height, bitrate:vSettings.bitrate, framerate:vSettings.framerate, hardwareAcceleration:'prefer-hardware', latencyMode:perf };
                     if (!(await VideoEncoder.isConfigSupported(vConfig)).supported) {
-                        goBackToMenu();
+                        goBackToLobby();
                         alert(`Video settings not supported.`);
                         return;
                     }
@@ -1213,12 +1390,12 @@
                 const config = {...metadata.decoderConfig}; if (config.description) config.description = Array.from(new Uint8Array(config.description));
                 config.streamSettings = streamSettings; msg.config = config;
             }
-            await streamrClient.publish(VIDEO_STREAM_ID, msg);
+            await streamrClient.publish(getStreamId('video', myPartition), msg);
         }
         async function handleAudioEncoderOutput(chunk) {
             if (!isBroadcasting) return; const data = new Uint8Array(chunk.byteLength); chunk.copyTo(data);
             const msg = { timestamp:chunk.timestamp, duration:chunk.duration, data_base64:arrayBufferToBase64(data.buffer) };
-            await streamrClient.publish(AUDIO_STREAM_ID, msg);
+            await streamrClient.publish(getStreamId('audio', myPartition), msg);
         }
         async function readVideoFrames(reader) {
             const interval = parseInt(keyframeIntervalSlider.value, 10);
@@ -1326,8 +1503,10 @@
             requestAnimationFrame(renderAndSchedule);
         };
 
-        async function joinStream() {
+        async function joinStream(partition) {
             if (!window.VideoDecoder || !window.AudioDecoder) return alert('Error: WebCodecs API not supported.');
+            myPartition = partition;
+            messagesContainer.innerHTML = '';
             showPage('watch'); isViewing = true; startViewerPresence(); await startChat();
             
             effectiveBufferTargetMs = parseInt(bufferSlider.value, 10);
@@ -1391,7 +1570,7 @@
                     if(!isPlaying) watchStatus.textContent = "Buffering...";
                 }
             };
-            videoSubscription = await streamrClient.subscribe(VIDEO_STREAM_ID, msg => {
+            videoSubscription = await streamrClient.subscribe(getStreamId('video', myPartition), msg => {
                 if (!isViewing) return; handleMessage();
                 if (msg.config) {
                     const newConfig = msg.config, newConfigId = `${newConfig.codedWidth}x${newConfig.codedHeight}`;
@@ -1413,7 +1592,7 @@
                 }
                 if (videoDecoder.state === 'configured') { try { videoDecoder.decode(new EncodedVideoChunk({ type:msg.type, timestamp:msg.timestamp, duration:msg.duration, data:base64ToArrayBuffer(msg.data_base64) })); } catch (e) { console.error("Error decoding video chunk:", e); } }
             });
-            audioSubscription = await streamrClient.subscribe(AUDIO_STREAM_ID, msg => {
+            audioSubscription = await streamrClient.subscribe(getStreamId('audio', myPartition), msg => {
                 if (!isViewing) return; handleMessage(); if (audioDecoder.state === 'unconfigured') audioDecoder.configure({ codec:'opus', sampleRate:48000, numberOfChannels:1 });
                 if(audioDecoder.state === 'configured') audioDecoder.decode(new EncodedAudioChunk({ type:'key', timestamp:msg.timestamp, duration:msg.duration, data:base64ToArrayBuffer(msg.data_base64) }));
             });
@@ -1432,6 +1611,7 @@
             if (videoSubscription) await videoSubscription.unsubscribe(); if (audioSubscription) await audioSubscription.unsubscribe();
             if (videoDecoder?.state !== 'closed') videoDecoder.close(); if (audioDecoder?.state !== 'closed') audioDecoder.close();
             if(audioContext?.state !== 'closed') await audioContext.close();
+            myPartition = null;
         }
 
 
@@ -1441,39 +1621,61 @@
             viewerCountBroadcaster.classList.toggle('hidden', count < 0); viewerCountWatcher.classList.toggle('hidden', count < 0);
         }
         async function startBroadcasterPresence() {
-            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, msg => { if(msg.userId) { if(msg.type==='join'||msg.type==='heartbeat') viewers.set(msg.userId, Date.now()); else if (msg.type==='leave') viewers.delete(msg.userId); } });
+            // Unsubscribe from lobby stream if we were subscribed
+            if (lobbySubscription) { await lobbySubscription.unsubscribe(); lobbySubscription = null; }
+
+            let viewers = new Map();
+            presenceSubscription = await streamrClient.subscribe(getStreamId('presence', myPartition), msg => { 
+                if(msg.userId) { 
+                    if(msg.type==='join'||msg.type==='heartbeat') viewers.set(msg.userId, Date.now()); 
+                    else if (msg.type==='leave') viewers.delete(msg.userId); 
+                } 
+            });
             broadcasterPresenceInterval = setInterval(async () => {
                 const now = Date.now(); for (const [id, seen] of viewers.entries()) if (now-seen > VIEWER_TIMEOUT_MS) viewers.delete(id);
                 updateViewerCountUI(viewers.size); 
                 const presencePayload = { 
-                    type:'viewer_count_update', 
-                    count:viewers.size,
+                    type:'stream_update', 
+                    partition: myPartition,
+                    viewerCount: viewers.size,
                     broadcaster: {
                         publisherId: mySessionId,
                         realAddress: myRealAddress,
                         nickname: myNickname,
                         signature: mySignature,
-                        signedMessage: signedMessageForVerification
+                        signedMessage: signedMessageForVerification,
+                        roomName: myRoomName // Include the room name here
                     }
                 };
-                await streamrClient.publish(PRESENCE_STREAM_ID, presencePayload);
+                // Publish to the lobby stream to announce our presence
+                await streamrClient.publish(LOBBY_STREAM_ID, presencePayload);
             }, 5000);
         }
         function stopBroadcasterPresence() {
              if (broadcasterPresenceInterval) clearInterval(broadcasterPresenceInterval);
-             if (presenceSubscription) presenceSubscription.unsubscribe(); viewers.clear(); updateViewerCountUI(-1);
+             if (presenceSubscription) presenceSubscription.unsubscribe();
+             // Publish a leave message to the lobby stream
+             streamrClient.publish(LOBBY_STREAM_ID, { type: 'stream_update', partition: myPartition, viewerCount: 0, broadcaster: null });
+             myPartition = null;
+             myRoomName = ''; // Clear the room name
+             updateViewerCountUI(-1);
         }
         async function startViewerPresence() {
+            if (lobbySubscription) { await lobbySubscription.unsubscribe(); lobbySubscription = null; }
             currentUserId = `viewer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            await streamrClient.publish(PRESENCE_STREAM_ID, { type:'join', userId:currentUserId });
-            presenceHeartbeatInterval = setInterval(() => streamrClient.publish(PRESENCE_STREAM_ID, { type:'heartbeat', userId:currentUserId }), HEARTBEAT_INTERVAL_MS);
-            presenceSubscription = await streamrClient.subscribe(PRESENCE_STREAM_ID, msg => { 
-                if(msg.type==='viewer_count_update') {
-                    updateViewerCountUI(msg.count); 
-                    if (msg.broadcaster) {
-                        const { publisherId, realAddress, nickname, signature, signedMessage } = msg.broadcaster;
+            await streamrClient.publish(getStreamId('presence', myPartition), { type:'join', userId:currentUserId });
+            presenceHeartbeatInterval = setInterval(() => streamrClient.publish(getStreamId('presence', myPartition), { type:'heartbeat', userId:currentUserId }), HEARTBEAT_INTERVAL_MS);
+            presenceSubscription = await streamrClient.subscribe(LOBBY_STREAM_ID, msg => { 
+                if (msg.type === 'stream_update' && msg.partition === myPartition) {
+                    if(msg.broadcaster) {
+                        updateViewerCountUI(msg.viewerCount); 
+                        const { publisherId, realAddress, nickname, signature, signedMessage, roomName } = msg.broadcaster;
                         if (realAddress) { userRealAddresses.set(publisherId, realAddress); }
                         if (nickname) { userNicknames.set(publisherId, nickname); }
+                        if (roomName) { 
+                            roomNames.set(myPartition, roomName); 
+                            roomNameOnWatchPage.textContent = roomName; // Update the room name on watch page
+                        }
                         if (realAddress && signature && signedMessage) {
                             verifyUser(publisherId, realAddress, signature, signedMessage);
                         }
@@ -1486,19 +1688,23 @@
         }
         function stopViewerPresence(sendLeave = false) {
             if (presenceHeartbeatInterval) clearInterval(presenceHeartbeatInterval); if (presenceSubscription) presenceSubscription.unsubscribe();
-            if(sendLeave && currentUserId) streamrClient.publish(PRESENCE_STREAM_ID, { type:'leave', userId:currentUserId });
+            if(sendLeave && currentUserId) streamrClient.publish(getStreamId('presence', myPartition), { type:'leave', userId:currentUserId });
             currentUserId = null; updateViewerCountUI(-1);
+            goBackToLobby();
         }
 
         // --- Navigation and Cleanup ---
-        async function goBackToMenu() {
-            if (isBroadcasting) await stopBroadcast();
-            if (isViewing) await stopViewing();
-            await stopChat();
-            showPage('menu');
+        async function goBackToLobby() {
+            if (isBroadcasting) {
+                await stopBroadcast();
+                startLobby();
+            } else if (isViewing) {
+                await stopViewing();
+                startLobby();
+            } else {
+                startLobby();
+            }
         }
     </script>
 </body>
 </html>
-
-

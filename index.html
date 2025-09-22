@@ -190,7 +190,7 @@
                 <!-- Lobby Page (New) -->
                 <div id="lobby-page" class="page active">
                     <div class="text-center mb-8">
-                        <h1 class="text-3xl font-bold text-white">Stream Rooms</h1>
+                        <h1 class="text-3xl font-bold text-white">Streaming Rooms</h1>
                         <p id="lobby-status" class="text-zinc-400 mt-1">Loading available rooms...</p>
                     </div>
 
@@ -207,7 +207,20 @@
                         </button>
                     </div>
 
-                    <div id="stream-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div id="stream-list-loader" class="text-center py-16">
+                        <div class="relative w-24 h-24 mx-auto mb-4">
+                            <div class="absolute inset-0 border-4 border-zinc-700 rounded-full"></div>
+                            <div class="absolute inset-0 border-t-4 border-blue-500 rounded-full animate-spin"></div>
+                            <div class="absolute inset-2 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="text-zinc-400">Searching for rooms...</p>
+                    </div>
+
+                    <div id="stream-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden">
                         <!-- Stream items will be dynamically added here -->
                     </div>
                 </div>
@@ -295,9 +308,9 @@
                                             </div>
                                             <span class="tooltip-text !w-56 !-ml-28">Lowest Latency is faster for real-time interaction. Best Quality prioritizes a clearer image, which might add a small delay.</span>
                                         </div>
-                                        <span id="performanceValue" class="text-sm font-mono text-zinc-400">Lowest Latency</span>
+                                        <span id="performanceValue" class="text-sm font-mono text-zinc-400">Best Quality</span>
                                     </div>
-                                    <input id="performanceSlider" type="range" min="0" max="1" value="0" step="1" class="disabled:opacity-50">
+                                    <input id="performanceSlider" type="range" min="0" max="1" value="1" step="1" class="disabled:opacity-50">
                                 </div>
                                 <div>
                                     <div class="flex justify-between items-center mb-2">
@@ -324,36 +337,38 @@
 
                 <!-- Broadcast Page -->
                 <div id="broadcast-page" class="page">
-                     <h1 class="text-2xl font-bold text-white text-center mb-1">Broadcasting</h1>
-                     <div id="broadcast-room-info" class="text-center text-zinc-400 mb-4 flex items-center justify-center gap-2">
-                        <span id="roomNameOnBroadcastPage" class="font-semibold"></span>
-                        <button id="shareBtnBroadcast" title="Copy room link" class="text-zinc-400 hover:text-white transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                            </svg>
-                        </button>
-                     </div>
-                     <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
-                        <div class="flex items-center justify-between text-zinc-400 text-sm mb-4">
-                            <!-- Left side: User ID -->
-                            <div class="flex items-center gap-2">
-                                 <span id="broadcaster-user-id" class="text-xs truncate"></span>
-                                 <button id="nicknameBtnBroadcast" title="Set Nickname" class="text-zinc-400 hover:text-white transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <!-- Right side: Status -->
-                            <div class="flex items-center gap-4">
-                                <div id="broadcast-status">...</div>
-                                <div id="viewer-count-broadcaster" class="flex items-center gap-1 hidden">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
-                                    <span id="viewer-count-broadcaster-value">0</span>
+                     <div id="broadcast-content-wrapper">
+                         <h1 class="text-2xl font-bold text-white text-center mb-1">Broadcasting</h1>
+                         <div id="broadcast-room-info" class="text-center text-zinc-400 mb-4 flex items-center justify-center gap-2">
+                            <span id="roomNameOnBroadcastPage" class="font-semibold"></span>
+                            <button id="shareBtnBroadcast" title="Copy room link" class="text-zinc-400 hover:text-white transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                </svg>
+                            </button>
+                         </div>
+                         <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
+                            <div class="flex items-center justify-between text-zinc-400 text-sm mb-4">
+                                <!-- Left side: User ID -->
+                                <div class="flex items-center gap-2">
+                                     <span id="broadcaster-user-id" class="text-xs truncate"></span>
+                                     <button id="nicknameBtnBroadcast" title="Set Nickname" class="text-zinc-400 hover:text-white transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <!-- Right side: Status -->
+                                <div class="flex items-center gap-4">
+                                    <div id="broadcast-status">...</div>
+                                    <div id="viewer-count-broadcaster" class="flex items-center gap-1 hidden">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                                        <span id="viewer-count-broadcaster-value">0</span>
+                                    </div>
                                 </div>
                             </div>
+                            <video id="localVideo" autoplay playsinline muted class="w-full h-auto bg-zinc-900 rounded-md camera-view"></video>
                         </div>
-                        <video id="localVideo" autoplay playsinline muted class="w-full h-auto bg-zinc-900 rounded-md camera-view"></video>
                     </div>
                     <div class="w-full flex justify-center">
                         <button id="back-to-lobby-btn" class="mt-8 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-5 rounded-lg transition-colors">Stop and Go Back</button>
@@ -367,7 +382,7 @@
                         <div class="text-2xl font-bold text-white flex items-center justify-center gap-2">
                              <h1 id="roomNameOnWatchPage">Watching Stream</h1>
                              <button id="shareBtnWatch" title="Copy room link" class="text-zinc-400 hover:text-white transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                   <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                 </svg>
                              </button>
@@ -486,7 +501,7 @@
     <div id="loginModal" class="fixed inset-0 bg-zinc-900 flex items-center justify-center p-4 z-50">
         <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-8 max-w-sm w-full text-zinc-300 text-center shadow-2xl">
             <div id="loginContent">
-                <h2 class="text-2xl font-bold mb-4 text-white">Welcome to Decentralized Streaming Platform</h2>
+                <h2 class="text-2xl font-bold mb-4 text-white">Welcome to the Decentralized Streaming Platform</h2>
                 <p class="mb-6">For a persistent identity, connect your wallet. Otherwise, you can continue as a guest.</p>
                 <button id="connectWalletBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors mb-4 flex items-center justify-center gap-2">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
@@ -578,6 +593,7 @@
 
     <script>
         // --- Stream Constants ---
+        const CANONICAL_HOST = 'https://live-p2p-video.edgeone.app/';
         const LOBBY_STREAM_ID = '0x9b365dd30a9a15bf4b4c6814970290ea7fbd6e4b/lobby';
         const VIDEO_STREAM_BASE = '0x9b365dd30a9a15bf4b4c6814970290ea7fbd6e4b/app1';
         const AUDIO_STREAM_BASE = '0x9b365dd30a9a15bf4b4c6814970290ea7fbd6e4b/app2';
@@ -599,6 +615,7 @@
             nicknameModal, nicknameInput, saveNicknameBtn, resetNicknameBtn, nicknameBtn, chatUserId, settingsStatus, nicknameBtnBroadcast, broadcasterUserId,
             broadcasterInfoOnWatchPage, toggleLatencyControlsBtn, latencyControlsCollapsible, toggleLatencyArrow, lobbyPage, streamListContainer, lobbyStatus, roomNameOnWatchPage,
             roomNameInput, roomNameOnBroadcastPage, shareBtnBroadcast, shareBtnWatch, toast, goLiveBtnLobby,
+            streamListLoader,
             // --- Tipping UI ---
             broadcasterDisplayName, tipBtn, tipModal, tipInitialView, tipLoadingView, tipSuccessView,
             tipRecipientName, tipAmountInput, tipErrorMsg, cancelTipBtn, sendTipBtn, closeTipSuccessBtn, tipEtherscanLink, tipTokenSelect, tipAmountLabel;
@@ -685,6 +702,7 @@
         let presenceHeartbeatInterval = null, broadcasterPresenceInterval = null;
         const VIEWER_TIMEOUT_MS = 15000, HEARTBEAT_INTERVAL_MS = 10000;
         let detailedWatchStatus = 'Looking for a broadcast...';
+        let lobbyUpdateTimeout = null;
         
         // --- Viewer Playback State ---
         let videoBuffer = [], audioBuffer = [];
@@ -788,13 +806,17 @@
                 streamListContainer.appendChild(streamItem);
             });
             
+            if (streamListLoader) streamListLoader.classList.add('hidden');
+            streamListContainer.classList.remove('hidden');
+            
             lobbyStatus.textContent = liveStreams.length > 0 ? 'Select a room to watch or start your own stream.' : 'No active streams. Be the first to go live!';
         }
         
         async function startLobby() {
             showPage('lobby');
-            updateStreamListUI(); // Initial rendering
-            
+            streamListLoader.classList.remove('hidden');
+            streamListContainer.classList.add('hidden');
+
             if (lobbySubscription) { await lobbySubscription.unsubscribe(); }
 
             let hasAttemptedJoin = false; // Flag to prevent multiple join attempts
@@ -811,11 +833,19 @@
                              if(lobbyStatus) updateStreamListUI(); // This will reset the lobby status text based on active streams
                         }, 3000);
                     }
-                }, 8000); // 8 second timeout
+                }, 800000); 
             }
+            
+            clearTimeout(lobbyUpdateTimeout);
+            lobbyUpdateTimeout = setTimeout(() => {
+                if (streamListContainer.classList.contains('hidden')) {
+                    updateStreamListUI();
+                }
+            }, 500000);
             
             lobbySubscription = await streamrClient.subscribe(LOBBY_STREAM_ID, (message, metadata) => {
                 if (message.type === 'stream_update') {
+                    clearTimeout(lobbyUpdateTimeout);
                     const partition = message.partition;
                     if (message.broadcaster) {
                          const { publisherId, realAddress, nickname, roomName } = message.broadcaster;
@@ -831,26 +861,23 @@
                         lastSeen: Date.now()
                     });
                     
-                    // MODIFIED: Process the list of verified users from the payload
                     processVerifiedUsers(message.verifiedUsersList);
-
                     updateStreamListUI();
 
                      // Auto-join logic
                     if (roomNameToJoin && !hasAttemptedJoin) {
                         for (const [p, rName] of roomNames.entries()) {
-                            // Case-insensitive comparison and decode URI component for spaces etc.
                             if (decodeURIComponent(rName).toLowerCase() === decodeURIComponent(roomNameToJoin).toLowerCase()) {
                                 const partitionInfo = activePartitions.get(p);
                                 const isLive = partitionInfo && partitionInfo.broadcaster && (Date.now() - partitionInfo.lastSeen < VIEWER_TIMEOUT_MS);
                                 if (isLive) {
-                                    hasAttemptedJoin = true; // Mark as attempted
-                                    clearTimeout(joinAttemptTimeout); // Found it, clear timeout
+                                    hasAttemptedJoin = true; 
+                                    clearTimeout(joinAttemptTimeout); 
                                     console.log(`Found room "${roomNameToJoin}" in partition ${p}. Attempting to join...`);
                                     joinStream(p);
-                                    roomNameToJoin = null; // Clear after joining
+                                    roomNameToJoin = null; 
                                 }
-                                break; // Stop searching once found
+                                break; 
                             }
                         }
                     }
@@ -863,7 +890,6 @@
             setInterval(() => {
                 let listChanged = false;
                 activePartitions.forEach((streamInfo, partition) => {
-                    // Remove broadcaster info if heartbeat is too old
                     if (streamInfo.broadcaster && (Date.now() - streamInfo.lastSeen > VIEWER_TIMEOUT_MS)) {
                         activePartitions.set(partition, { ...streamInfo, broadcaster: null, viewerCount: 0});
                         roomNames.delete(partition);
@@ -1095,8 +1121,8 @@
                 chatContainer.style.paddingTop = `${paddingTop}px`;
                 chatBox.style.height = `${totalHeight}px`;
             } else {
-                 // Fallback for broadcast page, which has a simpler structure
-                const activePlayerBox = document.querySelector('#broadcast-page .bg-zinc-800');
+                 // MODIFICATION: Target the new wrapper for the broadcast page
+                const activePlayerBox = document.getElementById('broadcast-content-wrapper');
                 if (activePlayerBox) {
                     const playerRect = activePlayerBox.getBoundingClientRect();
                     const mainContainerRect = document.getElementById('main-container').getBoundingClientRect();
@@ -1461,13 +1487,15 @@
 
             // Share buttons
             if(shareBtnBroadcast) shareBtnBroadcast.onclick = () => {
-                const roomUrl = `${window.location.origin}/${encodeURIComponent(myRoomName)}`;
+                // MODIFICATION: Force canonical host for sharing
+                const roomUrl = `${CANONICAL_HOST}#${encodeURIComponent(myRoomName)}`;
                 copyToClipboard(roomUrl);
             };
             if(shareBtnWatch) shareBtnWatch.onclick = () => {
                 const roomName = roomNames.get(myPartition) || '';
                 if (roomName) {
-                    const roomUrl = `${window.location.origin}/${encodeURIComponent(roomName)}`;
+                    // MODIFICATION: Force canonical host for sharing
+                    const roomUrl = `${CANONICAL_HOST}#${encodeURIComponent(roomName)}`;
                     copyToClipboard(roomUrl);
                 }
             };
@@ -1569,11 +1597,12 @@
 
         function main() {
             // --- Parse URL for deep links ---
-            const path = window.location.pathname;
-            if (path && path !== '/') {
-                // Remove leading slash and decode
-                roomNameToJoin = decodeURIComponent(path.substring(1));
-                console.log(`Attempting to join room from URL: "${roomNameToJoin}"`);
+            // MODIFICATION: Use hash instead of path for deep links
+            const hash = window.location.hash;
+            if (hash) {
+                // Remove the leading '#'
+                roomNameToJoin = decodeURIComponent(hash.substring(1));
+                console.log(`Attempting to join room from URL hash: "${roomNameToJoin}"`);
             }
 
             // --- Initialize UI Elements ---
@@ -1647,6 +1676,7 @@
             toggleLatencyArrow = document.getElementById('toggle-latency-arrow');
             lobbyPage = document.getElementById('lobby-page');
             streamListContainer = document.getElementById('stream-list-container');
+            streamListLoader = document.getElementById('stream-list-loader');
             lobbyStatus = document.getElementById('lobby-status');
             roomNameInput = document.getElementById('roomNameInput'); 
             roomNameOnWatchPage = document.getElementById('roomNameOnWatchPage');
@@ -1731,7 +1761,12 @@
                      localStream.getTracks().forEach(t => t.stop());
                      return;
                 }
-                showPage('broadcast'); isBroadcasting = true; startBroadcasterPresence(); await startChat(); localVideo.srcObject = localStream;
+                showPage('broadcast'); 
+                currentBroadcasterAddress = myRealAddress; // Set the address for self-verification of tips
+                isBroadcasting = true; 
+                startBroadcasterPresence(); 
+                await startChat(); 
+                localVideo.srcObject = localStream;
                 let vSettings, statusText = `Broadcasting ${broadcastSourceType} `;
                 if(hasVideo) {
                     const trackSettings = localStream.getVideoTracks()[0].getSettings(); const bitrate = parseInt(bitrateSlider.value, 10); const perf = (performanceSlider.value === '0') ? 'realtime' : 'quality';
@@ -1991,7 +2026,7 @@
             currentBroadcasterAddress = null; // Reset tipping address
             if (tipBtn) tipBtn.disabled = true;
 
-            if (videoSubscription) await videoSubscription.unsubscribe(); if (audioSubscription) await audioSubscription.unsubscribe();
+            if (videoSubscription) await videoSubscription.unsubscribe(); if (audioSubscription) await videoSubscription.unsubscribe();
             if (videoDecoder?.state !== 'closed') videoDecoder.close(); if (audioDecoder?.state !== 'closed') audioDecoder.close();
             if(audioContext?.state !== 'closed') await audioContext.close();
             myPartition = null;
@@ -2225,10 +2260,12 @@
 
         // --- Navigation and Cleanup ---
         async function goBackToLobby() {
-            // Clean the URL path when returning to the lobby
-            if (window.location.pathname !== '/') {
-                window.history.pushState({}, document.title, window.location.origin);
+            // MODIFICATION: Clean the URL hash when returning to the lobby
+            const cleanUrl = window.location.href.split('#')[0];
+            if (window.location.href !== cleanUrl) {
+                window.history.pushState({}, document.title, cleanUrl);
             }
+
             if (isBroadcasting) {
                 await stopBroadcast();
                 initializeApp();
@@ -2242,3 +2279,4 @@
     </script>
 </body>
 </html>
+

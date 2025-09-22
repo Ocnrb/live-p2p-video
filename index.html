@@ -724,6 +724,23 @@
             return `${STREAM_BASE}/${type}`;
         }
 
+        // --- NEW --- Helper function to process verified user lists from lobby messages
+        function processVerifiedUsers(verifiedList) {
+            if (verifiedList && Array.isArray(verifiedList)) {
+                verifiedList.forEach(([sessionId, realAddress]) => {
+                    const colorKey = realAddress;
+                    // If we haven't seen this user as verified before, update our state.
+                    if (!verifiedUsers.has(colorKey)) {
+                        console.log(`Synced verification for ${realAddress} via lobby update.`);
+                        userRealAddresses.set(sessionId, realAddress);
+                        verifiedUsers.set(colorKey, true);
+                        updateUIVerification(sessionId);
+                    }
+                });
+            }
+        }
+
+
         // --- Dynamic Room/Lobby Logic ---
         function updateStreamListUI() {
             streamListContainer.innerHTML = ''; // Clear the list
@@ -813,6 +830,10 @@
                         viewerCount: message.viewerCount,
                         lastSeen: Date.now()
                     });
+                    
+                    // MODIFIED: Process the list of verified users from the payload
+                    processVerifiedUsers(message.verifiedUsersList);
+
                     updateStreamListUI();
 
                      // Auto-join logic
@@ -1996,6 +2017,11 @@
             broadcasterPresenceInterval = setInterval(async () => {
                 const now = Date.now(); for (const [id, seen] of viewers.entries()) if (now-seen > VIEWER_TIMEOUT_MS) viewers.delete(id);
                 updateViewerCountUI(viewers.size); 
+                
+                // MODIFIED: Convert the userRealAddresses map to an array to include in the payload.
+                // This shares the session-to-wallet mapping with all lobby listeners.
+                const verifiedUsersList = Array.from(userRealAddresses.entries());
+
                 const presencePayload = { 
                     type:'stream_update', 
                     partition: myPartition,
@@ -2005,7 +2031,8 @@
                         realAddress: myRealAddress,
                         nickname: myNickname,
                         roomName: myRoomName
-                    }
+                    },
+                    verifiedUsersList: verifiedUsersList // NEW: Add the list of verified users
                 };
                 // Publish to the lobby stream to announce our presence
                 await streamrClient.publish(LOBBY_STREAM_ID, presencePayload);
@@ -2028,6 +2055,9 @@
             
             presenceSubscription = await streamrClient.subscribe(LOBBY_STREAM_ID, msg => { 
                 if (msg.type === 'stream_update' && msg.partition === myPartition) {
+                     // MODIFIED: Process the incoming list of verified users from the broadcaster.
+                    processVerifiedUsers(msg.verifiedUsersList);
+
                     if(msg.broadcaster) {
                         updateViewerCountUI(msg.viewerCount); 
                         const { publisherId, realAddress, nickname, roomName } = msg.broadcaster;
@@ -2212,5 +2242,3 @@
     </script>
 </body>
 </html>
-
-

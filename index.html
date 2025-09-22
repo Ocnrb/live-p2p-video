@@ -3,6 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://unpkg.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src https://fonts.gstatic.com;
+        img-src 'self' data: blob:;
+        media-src 'self' blob:;
+        worker-src 'self' blob:;
+        connect-src 'self' https: wss: data:;
+    ">
     <title>Streamr - P2P Video and Chat</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -92,40 +102,25 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            align-items: flex-start;
             padding: 1rem;
             border-radius: 0.5rem;
             border: 1px solid #3f3f46;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, transform 0.2s;
+            cursor: pointer;
+            overflow: hidden;
         }
         .stream-item:hover {
             background-color: #27272a;
+            transform: translateY(-2px);
         }
-        .stream-item.occupied {
-            opacity: 0.7;
+        .go-live-item {
+             background: linear-gradient(45deg, #1e3a8a, #3b82f6);
+             border: 1px solid #3b82f6;
         }
-        .stream-item.occupied:hover {
-            background-color: #121212;
-            cursor: not-allowed;
-        }
-        .stream-item.occupied .watch-btn {
-            display: none;
-        }
-        .stream-item .watch-btn, .stream-item .broadcast-btn {
-            transition: background-color 0.2s;
-        }
-        .stream-item .watch-btn:hover {
-            background-color: #1d4ed8;
-        }
-        .stream-item .broadcast-btn:hover {
-            background-color: #1d4ed8;
-        }
-        .stream-item-live {
-            cursor: pointer;
-        }
-        .stream-item-free {
-            cursor: pointer;
-        }
+         .go-live-item:hover {
+            background: linear-gradient(45deg, #1e40af, #2563eb);
+         }
+
         /* Chat App Styles (Twitch/YouTube Style) */
         .message-entry {
             animation: fadeIn 0.3s ease-in-out;
@@ -142,6 +137,18 @@
             display: inline;
             color: #e0e0e0; /* main text color */
         }
+        .tip-notification {
+            background-color: rgba(251, 191, 36, 0.1);
+            border-left: 3px solid #f59e0b;
+            color: #fde68a;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-style: italic;
+            font-size: 0.8rem;
+            margin: 0.25rem 0;
+            line-height: 1.4;
+            word-break: break-word;
+        }
         .send-button { background-color: #2563eb; color: white; width: 2.5rem; height: 2.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: background-color 0.2s; }
         .send-button:hover { background-color: #1d4ed8; }
         .emoji-button { background-color: transparent; color: #9ca3af; padding: 0.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin-right: 0.5rem; transition: color 0.2s; }
@@ -150,7 +157,7 @@
         .emoji-picker span { cursor: pointer; margin: 2px; font-size: 1.2rem; padding: 4px; border-radius: 4px; transition: background-color 0.2s;}
         .emoji-picker span:hover { background-color: #4b5563; }
         #messagesContainer { scrollbar-width: thin; scrollbar-color: #4b5563 #1f2937; }
-        #messageInput { background-color: #374151; color: #e0e0e0; border: 1px solid #4b5563; }
+        #messageInput, #tipAmountInput, #tipTokenSelect { background-color: #374151; color: #e0e0e0; border: 1px solid #4b5563; }
         
         /* Spinner for login */
         .spinner {
@@ -174,11 +181,11 @@
 </head>
 <body class="bg-zinc-900 text-zinc-300 flex justify-center h-screen p-4">
 
-    <div id="main-container" class="w-full h-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
+    <div id="main-container" class="w-full h-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-8 items-start pt-12 md:pt-16">
         
         <!-- Video Column -->
         <div id="video-column" class="lg:col-span-5 w-full flex justify-center">
-             <div class="w-full max-w-3xl">
+             <div class="w-full max-w-4xl">
                 
                 <!-- Lobby Page (New) -->
                 <div id="lobby-page" class="page active">
@@ -186,6 +193,20 @@
                         <h1 class="text-3xl font-bold text-white">Stream Rooms</h1>
                         <p id="lobby-status" class="text-zinc-400 mt-1">Loading available rooms...</p>
                     </div>
+
+                    <!-- Go Live Button -->
+                    <div class="flex justify-center mb-10">
+                         <button id="go-live-btn-lobby" class="go-live-item stream-item w-full max-w-[220px] flex flex-col items-center justify-center p-4">
+                             <div class="mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
+                                    <path d="M14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-md font-semibold text-white">Go Live</h2>
+                        </button>
+                    </div>
+
                     <div id="stream-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <!-- Stream items will be dynamically added here -->
                     </div>
@@ -303,7 +324,15 @@
 
                 <!-- Broadcast Page -->
                 <div id="broadcast-page" class="page">
-                     <h1 class="text-2xl font-bold text-white text-center mb-4">Broadcasting</h1>
+                     <h1 class="text-2xl font-bold text-white text-center mb-1">Broadcasting</h1>
+                     <div id="broadcast-room-info" class="text-center text-zinc-400 mb-4 flex items-center justify-center gap-2">
+                        <span id="roomNameOnBroadcastPage" class="font-semibold"></span>
+                        <button id="shareBtnBroadcast" title="Copy room link" class="text-zinc-400 hover:text-white transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                        </button>
+                     </div>
                      <div class="bg-zinc-800 border border-zinc-700 p-4 rounded-xl shadow-lg">
                         <div class="flex items-center justify-between text-zinc-400 text-sm mb-4">
                             <!-- Left side: User ID -->
@@ -335,8 +364,27 @@
                 <div id="watch-page" class="page">
                     <!-- Player Header: Contains all metadata about the stream -->
                     <div id="player-header" class="text-center mb-6">
-                        <h1 class="text-2xl font-bold text-white"><span id="roomNameOnWatchPage">Watching Stream</span></h1>
-                        <div id="broadcaster-info-on-watch-page" class="text-zinc-400 text-sm mt-2 hidden"></div>
+                        <div class="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                             <h1 id="roomNameOnWatchPage">Watching Stream</h1>
+                             <button id="shareBtnWatch" title="Copy room link" class="text-zinc-400 hover:text-white transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                </svg>
+                             </button>
+                        </div>
+                        <div id="broadcaster-info-on-watch-page" class="text-zinc-400 text-sm mt-2 hidden flex items-center justify-center gap-2">
+                             <span id="broadcaster-display-name"></span>
+                             <div class="tooltip-container">
+                                <button id="tipBtn" class="ml-2 bg-amber-500 hover:bg-amber-600 text-white font-bold py-1 px-2 rounded-full text-xs transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                      <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.5 2.5 0 00-1.134 0V7.418zM12.25 10a2.5 2.5 0 01-2.25 2.45V15a.75.75 0 01-1.5 0v-2.55a2.5 2.5 0 01-2.25-2.45V9a.75.75 0 011.5 0v1h.75a.75.75 0 010 1.5H9.5v-1a.75.75 0 011.5 0v1h.75a.75.75 0 010 1.5H11v-1a.75.75 0 011.5 0V10z" />
+                                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-1.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13z" clip-rule="evenodd" />
+                                    </svg>
+                                    <span>Tip</span>
+                                </button>
+                                <span class="tooltip-text !w-64 !-ml-32">To send a tip, both you and the broadcaster must be connected with a wallet.</span>
+                             </div>
+                        </div>
                         <div class="flex items-center justify-center gap-4 mt-1 text-zinc-400 text-sm">
                             <div id="watch-status">...</div>
                             <div id="viewer-count-watcher" class="flex items-center gap-1 hidden">
@@ -438,7 +486,7 @@
     <div id="loginModal" class="fixed inset-0 bg-zinc-900 flex items-center justify-center p-4 z-50">
         <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-8 max-w-sm w-full text-zinc-300 text-center shadow-2xl">
             <div id="loginContent">
-                <h2 class="text-2xl font-bold mb-4 text-white">Welcome to Decentralized Stream</h2>
+                <h2 class="text-2xl font-bold mb-4 text-white">Welcome to Decentralized Streaming Platform</h2>
                 <p class="mb-6">For a persistent identity, connect your wallet. Otherwise, you can continue as a guest.</p>
                 <button id="connectWalletBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors mb-4 flex items-center justify-center gap-2">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
@@ -476,6 +524,58 @@
         </div>
     </div>
 
+    <!-- Tip Modal -->
+    <div id="tipModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-zinc-800 rounded-lg p-8 max-w-sm w-full text-zinc-300 border border-zinc-700">
+            <div id="tip-initial-view">
+                <h2 class="text-2xl font-bold mb-2 text-white">Send a Tip</h2>
+                <p class="mb-4">Show your support for <span id="tip-recipient-name" class="font-semibold">the broadcaster</span>!</p>
+                <div class="mb-4 space-y-3">
+                    <div>
+                        <label for="tipTokenSelect" class="block text-sm font-medium text-zinc-400 mb-1">Token</label>
+                        <select id="tipTokenSelect" class="w-full bg-zinc-700 border border-zinc-600 rounded-lg p-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    </div>
+                    <div>
+                        <label for="tipAmountInput" id="tipAmountLabel" class="block text-sm font-medium text-zinc-400 mb-1">Amount</label>
+                        <input type="number" id="tipAmountInput" step="0.001" min="0" class="w-full bg-zinc-700 border border-zinc-600 rounded-lg p-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0.01">
+                    </div>
+                </div>
+                <p id="tip-error-msg" class="text-red-400 text-sm mb-4 min-h-[1.25rem]"></p>
+                <div class="flex items-center gap-4">
+                    <button id="cancelTipBtn" class="w-full bg-zinc-600 hover:bg-zinc-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                    <button id="sendTipBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        Send Tip
+                    </button>
+                </div>
+            </div>
+            <div id="tip-loading-view" class="hidden text-center">
+                <div class="flex justify-center items-center mb-4">
+                    <div class="spinner"></div>
+                </div>
+                <p class="text-lg">Processing Transaction...</p>
+                <p class="text-sm text-zinc-400 mt-2">Please confirm in your wallet.</p>
+            </div>
+            <div id="tip-success-view" class="hidden text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-green-400 mx-auto mb-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                <h2 class="text-2xl font-bold mb-2 text-white">Success!</h2>
+                <p class="mb-4">Your tip has been sent.</p>
+                <a id="tip-etherscan-link" href="#" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline mb-4 inline-block">View on Explorer</a>
+                <button id="closeTipSuccessBtn" class="w-full bg-zinc-600 hover:bg-zinc-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
+        Link copied to clipboard!
+    </div>
+
     <script>
         // --- Stream Constants ---
         const LOBBY_STREAM_ID = '0x9b365dd30a9a15bf4b4c6814970290ea7fbd6e4b/lobby';
@@ -498,7 +598,11 @@
             loadingInstructions, chatContainer, messageInput, sendBtn, emojiBtn, messagesContainer, emojiPicker,
             nicknameModal, nicknameInput, saveNicknameBtn, resetNicknameBtn, nicknameBtn, chatUserId, settingsStatus, nicknameBtnBroadcast, broadcasterUserId,
             broadcasterInfoOnWatchPage, toggleLatencyControlsBtn, latencyControlsCollapsible, toggleLatencyArrow, lobbyPage, streamListContainer, lobbyStatus, roomNameOnWatchPage,
-            roomNameInput; // New variable for the room name input field
+            roomNameInput, roomNameOnBroadcastPage, shareBtnBroadcast, shareBtnWatch, toast, goLiveBtnLobby,
+            // --- Tipping UI ---
+            broadcasterDisplayName, tipBtn, tipModal, tipInitialView, tipLoadingView, tipSuccessView,
+            tipRecipientName, tipAmountInput, tipErrorMsg, cancelTipBtn, sendTipBtn, closeTipSuccessBtn, tipEtherscanLink, tipTokenSelect, tipAmountLabel;
+
 
         const emojis = [
             '😂', '😭', '❤️', '👍', '👎', '👏', '🔥', '💯', '🤔', '🙏', '🤯', '🥳', '😎', '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😊', '😇', '🙂', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
@@ -510,6 +614,41 @@
             '❤️', '🧡', '💛', '💚', '💙', '💜', '🤎', '🖤', '🤍', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💌', '💥', '💫', '🌟', '✨', '⚡', '🔥', '☄️', '💧', '🌊', '💦', '💧',
             '🎈', '🎉', '🎊', '🎁', '🎀', '🪄', '🔔', '📢', '🔊', '📣', '📯', '🎶', '🎵', '🎼', '🎙️', '📱', '📞', '💻', '🖥️', '⌨️', '🖱️', '🔋', '🔌', '💡', '🔦', '💵', '💰', '💳', '💎'
         ];
+
+        // --- Web3 Constants ---
+        const ERC20_ABI = ["function transfer(address to, uint amount) returns (bool)"];
+        const NETWORKS = {
+            1: { name: 'Ethereum', symbol: 'ETH', explorer: 'https://etherscan.io', rpcUrl: 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161' },
+            137: { name: 'Polygon', symbol: 'MATIC', explorer: 'https://polygonscan.com', rpcUrl: 'https://polygon-rpc.com' },
+            42161: { name: 'Arbitrum', symbol: 'ETH', explorer: 'https://arbiscan.io', rpcUrl: 'https://arb1.arbitrum.io/rpc' },
+            10: { name: 'Optimism', symbol: 'ETH', explorer: 'https://optimistic.etherscan.io', rpcUrl: 'https://mainnet.optimism.io' },
+            8453: { name: 'Base', symbol: 'ETH', explorer: 'https://basescan.org', rpcUrl: 'https://mainnet.base.org' },
+        };
+        const TOKEN_ADDRESSES = {
+            1: { // Ethereum
+                'USDC': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                'USDT': '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+                'DATA': '0x8f693ca8D21b157107184d29D398A8D082b38b76',
+            },
+            137: { // Polygon
+                'USDC': '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+                'USDT': '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
+                'DATA': '0x3a9A81d576d83FF21f26f325066054540720fC34',
+            },
+            42161: { // Arbitrum One
+                'USDC': '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+                'USDT': '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+            },
+            10: { // Optimism
+                'USDC': '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+                'USDT': '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
+            },
+            8453: { // Base
+                'USDC': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+                'USDT': '0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6Ca',
+            }
+        };
+        const TOKEN_DECIMALS = { 'USDC': 6, 'USDT': 6, 'DATA': 18 }; 
 
         // --- Constants and Mappings ---
         const resolutions = [ { text: '480p', value: '640x480' }, { text: '720p', value: '1280x720' }, { text: '1080p', value: '1920x1080' }];
@@ -528,10 +667,11 @@
         let isBroadcasting = false, isViewing = false;
         let mySessionId = '';
         let myRealAddress = '';
-        let mySignature = ''; // To store the user's signature
-        let signedMessageForVerification = ''; // To store the message that was signed
+        let currentChainId = null;
         let myNickname = '';
         let myRoomName = ''; // New state variable for the room name
+        let roomNameToJoin = null; // To store room name from URL
+        let currentBroadcasterAddress = null; // For tipping
         let userNicknames = new Map();
         let roomNames = new Map(); // Map from partition to room name
         let verifiedUsers = new Map(); // To cache verification results
@@ -587,83 +727,84 @@
         // --- Dynamic Room/Lobby Logic ---
         function updateStreamListUI() {
             streamListContainer.innerHTML = ''; // Clear the list
-            let hasActiveStreams = false;
-            for (let i = 1; i <= PARTITIONS; i++) {
-                const partitionInfo = activePartitions.get(i);
-                // Check if the stream is currently active
-                const isLive = partitionInfo && partitionInfo.broadcaster && (Date.now() - partitionInfo.lastSeen < VIEWER_TIMEOUT_MS);
-                const isFree = !isLive; // A partition is free if it's not live.
 
+            // Filter for live streams
+            const liveStreams = Array.from(activePartitions.entries())
+                .filter(([partition, info]) => {
+                    return info && info.broadcaster && (Date.now() - info.lastSeen < VIEWER_TIMEOUT_MS);
+                })
+                .sort(([pA, infoA], [pB, infoB]) => {
+                    // Sort by viewer count, descending
+                    return (infoB.viewerCount || 0) - (infoA.viewerCount || 0);
+                });
+
+            // Populate the list with sorted, live streams
+            liveStreams.forEach(([partition, partitionInfo]) => {
                 const streamItem = document.createElement('div');
-                streamItem.className = `stream-item`;
+                streamItem.className = 'stream-item stream-item-live group relative';
+                streamItem.onclick = () => joinStream(partition);
+
+                const roomName = roomNames.get(partition) || `Room ${partition}`;
                 
-                let dotClass = isLive ? 'dot-green' : 'dot-red';
-                let dotTitle = isLive ? 'Live' : 'Offline';
-                if (!isLive && partitionInfo && (Date.now() - partitionInfo.lastSeen < 60000)) {
-                    dotClass = 'dot-yellow';
-                    dotTitle = 'Last seen recently...';
-                }
-
-                // Get the room name from the map, or default to "Room {i}"
-                const roomName = roomNames.get(i) || `Room ${i}`;
-
-                const streamItemContent = `
-                    <div class="flex items-center justify-between w-full">
-                        <div class="flex items-center gap-2">
-                            <span class="status-dot ${dotClass}" title="${dotTitle}"></span>
-                            <div class="flex flex-col">
-                                <span class="font-semibold text-white">${sanitizeHTML(roomName)}</span>
-                                ${isLive ? `<span class="text-sm text-zinc-400">by ${getDisplayName(partitionInfo.broadcaster.publisherId)}</span>` : `<span class="text-sm text-zinc-400">Free</span>`}
+                streamItem.innerHTML = `
+                   <div class="flex flex-col justify-between h-full">
+                        <div>
+                            <div class="flex items-center justify-between w-full mb-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="status-dot dot-green" title="Live"></span>
+                                    <span class="font-semibold text-white truncate" title="${sanitizeHTML(roomName)}">${sanitizeHTML(roomName)}</span>
+                                </div>
+                                <div class="flex items-center gap-1 text-sm text-zinc-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                                    <span>${partitionInfo.viewerCount || 0}</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                             <div class="flex items-center gap-1 text-sm text-zinc-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
-                                <span>${partitionInfo ? partitionInfo.viewerCount : 0}</span>
-                            </div>
+                            <p class="text-sm text-zinc-400 text-left">by ${getDisplayName(partitionInfo.broadcaster.publisherId)}</p>
                         </div>
                     </div>
-                    <div class="flex items-center justify-between w-full mt-4">
-                        <button class="broadcast-btn w-[48%] bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" ${isFree ? '' : 'disabled'}>
-                            Broadcast
-                        </button>
-                        <button class="watch-btn w-[48%] bg-zinc-700 text-white font-bold py-2 px-4 rounded-lg transition-colors hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed" ${isLive ? '' : 'disabled'}>
-                            Watch
-                        </button>
+                    <div class="absolute top-0 left-0 right-0 bottom-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                        </svg>
                     </div>
                 `;
-                streamItem.innerHTML = streamItemContent;
-                
-                const broadcastBtn = streamItem.querySelector('.broadcast-btn');
-                if(isFree){ broadcastBtn.onclick = () => createNewStream(i); }
-
-                const watchBtn = streamItem.querySelector('.watch-btn');
-                if(isLive){ watchBtn.onclick = () => joinStream(i); }
-
                 streamListContainer.appendChild(streamItem);
-                
-                if (isLive) {
-                    hasActiveStreams = true;
-                }
-            }
-            lobbyStatus.textContent = hasActiveStreams ? 'Select a room to watch or start your own stream.' : 'No active streams. Be the first to start one!';
+            });
+            
+            lobbyStatus.textContent = liveStreams.length > 0 ? 'Select a room to watch or start your own stream.' : 'No active streams. Be the first to go live!';
         }
         
         async function startLobby() {
             showPage('lobby');
-            updateStreamListUI(); // Initial rendering of all 99 partitions
+            updateStreamListUI(); // Initial rendering
             
             if (lobbySubscription) { await lobbySubscription.unsubscribe(); }
+
+            let hasAttemptedJoin = false; // Flag to prevent multiple join attempts
+            let joinAttemptTimeout = null;
+
+            if (roomNameToJoin) {
+                lobbyStatus.textContent = `Searching for room "${roomNameToJoin}"...`;
+                joinAttemptTimeout = setTimeout(() => {
+                    if (!hasAttemptedJoin) {
+                        lobbyStatus.textContent = `Room "${roomNameToJoin}" could not be found or is offline.`;
+                        roomNameToJoin = null; // Clear it so we don't keep searching
+                        // Reset to default message after a few seconds
+                        setTimeout(() => {
+                             if(lobbyStatus) updateStreamListUI(); // This will reset the lobby status text based on active streams
+                        }, 3000);
+                    }
+                }, 8000); // 8 second timeout
+            }
             
             lobbySubscription = await streamrClient.subscribe(LOBBY_STREAM_ID, (message, metadata) => {
                 if (message.type === 'stream_update') {
                     const partition = message.partition;
                     if (message.broadcaster) {
-                         const { publisherId, realAddress, nickname, signature, signedMessage, roomName } = message.broadcaster;
+                         const { publisherId, realAddress, nickname, roomName } = message.broadcaster;
                          if (realAddress) { userRealAddresses.set(publisherId, realAddress); }
                          if (nickname) { userNicknames.set(publisherId, nickname); }
                          if (roomName) { roomNames.set(partition, roomName); }
-                         if (realAddress && signature && signedMessage) { verifyUser(publisherId, realAddress, signature, signedMessage); }
                     } else {
                         roomNames.delete(partition);
                     }
@@ -673,6 +814,27 @@
                         lastSeen: Date.now()
                     });
                     updateStreamListUI();
+
+                     // Auto-join logic
+                    if (roomNameToJoin && !hasAttemptedJoin) {
+                        for (const [p, rName] of roomNames.entries()) {
+                            // Case-insensitive comparison and decode URI component for spaces etc.
+                            if (decodeURIComponent(rName).toLowerCase() === decodeURIComponent(roomNameToJoin).toLowerCase()) {
+                                const partitionInfo = activePartitions.get(p);
+                                const isLive = partitionInfo && partitionInfo.broadcaster && (Date.now() - partitionInfo.lastSeen < VIEWER_TIMEOUT_MS);
+                                if (isLive) {
+                                    hasAttemptedJoin = true; // Mark as attempted
+                                    clearTimeout(joinAttemptTimeout); // Found it, clear timeout
+                                    console.log(`Found room "${roomNameToJoin}" in partition ${p}. Attempting to join...`);
+                                    joinStream(p);
+                                    roomNameToJoin = null; // Clear after joining
+                                }
+                                break; // Stop searching once found
+                            }
+                        }
+                    }
+                } else if (message.type === 'identity_proof') {
+                    verifyIdentityProof(message);
                 }
             });
 
@@ -681,7 +843,7 @@
                 let listChanged = false;
                 activePartitions.forEach((streamInfo, partition) => {
                     // Remove broadcaster info if heartbeat is too old
-                    if (Date.now() - streamInfo.lastSeen > 10000) { // 10s timeout
+                    if (streamInfo.broadcaster && (Date.now() - streamInfo.lastSeen > VIEWER_TIMEOUT_MS)) {
                         activePartitions.set(partition, { ...streamInfo, broadcaster: null, viewerCount: 0});
                         roomNames.delete(partition);
                         listChanged = true;
@@ -693,12 +855,43 @@
             }, 5000);
         }
 
-        function createNewStream(partition) {
-            myPartition = partition;
-            initiateBroadcastFlow();
+        // --- Helper Functions ---
+        function showToast(message) {
+            if (!toast) return;
+            toast.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2000); // Hide after 2 seconds
         }
 
-        // --- Helper Functions ---
+        function copyToClipboard(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text)
+                    .then(() => showToast('Room link copied to clipboard!'))
+                    .catch(err => {
+                        console.error('Failed to copy text: ', err);
+                        showToast('Failed to copy link.');
+                    });
+            } else {
+                // Fallback for insecure contexts or older browsers
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed"; // Avoid scrolling to bottom
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast('Room link copied to clipboard!');
+                } catch (err) {
+                    console.error('Fallback: Oops, unable to copy', err);
+                    showToast('Failed to copy link.');
+                }
+                document.body.removeChild(textArea);
+            }
+        }
+
         function simpleHash(str) {
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
@@ -730,7 +923,7 @@
             const isVerified = verifiedUsers.get(getColorKey(publisherId));
 
             if (realAddress) { // Wallet user
-                const shortAddress = `(${realAddress.slice(0, 0)}...${realAddress.slice(-4)})`;
+                const shortAddress = `${realAddress.slice(0, 6)}...${realAddress.slice(-4)}`;
                 const verificationMark = isVerified 
                     ? ` <span class="tooltip-container">
                            <span class="cursor-help">✅</span>
@@ -739,13 +932,13 @@
                     : '';
                 
                 if (sanitizedNickname) {
-                    return `${sanitizedNickname} ${shortAddress}${verificationMark}`;
+                    return `${sanitizedNickname} (${shortAddress})${verificationMark}`;
                 }
-                return `${realAddress.slice(0, 6)}...${realAddress.slice(-4)}${verificationMark}`;
+                return `${shortAddress}${verificationMark}`;
             } else { // Guest user
-                const shortSessionId = `(${publisherId.slice(0, 6)}...${publisherId.slice(-4)})`;
+                const shortSessionId = `${publisherId.slice(0, 6)}...${publisherId.slice(-4)}`;
                 if (sanitizedNickname) {
-                    return `${sanitizedNickname} ${shortSessionId}`;
+                    return `${sanitizedNickname} (${shortSessionId})`;
                 }
                 return shortSessionId;
             }
@@ -753,7 +946,7 @@
 
         // --- Helper Functions ---
         function sanitizeHTML(str) {
-            return DOMPurify.sanitize(str, {ALLOWED_TAGS: ['b', 'i', 'strong', 'em'], ALLOWED_ATTR: []});
+            return DOMPurify.sanitize(str, {ALLOWED_TAGS: ['b', 'i', 'strong', 'em', 'a'], ALLOWED_ATTR: ['href', 'target', 'rel']});
         }
         function arrayBufferToBase64(buffer) {
             let binary = '', bytes = new Uint8Array(buffer);
@@ -786,6 +979,20 @@
             }
         }
 
+        function handleChainChanged(chainId) {
+            console.log("Network changed to:", chainId);
+            // Reloading is the simplest way to ensure a clean state
+            window.location.reload();
+        }
+        
+        async function cleanupClient() {
+            if (streamrClient) {
+                console.log("Cleaning up previous Streamr client...");
+                await streamrClient.destroy();
+                streamrClient = null;
+            }
+        }
+
         async function connectWithWallet() {
             const injectedProvider = window.ethereum || window.top?.ethereum;
             if (!injectedProvider) {
@@ -794,30 +1001,44 @@
             }
             try {
                 setLoginModalState('loading');
+                loadingInstructions.textContent = 'Please follow the instructions in your wallet.';
+
+                // Initialize with a new, secure, anonymous session first.
+                await initializeApp();
+
+                // Listen for network changes
+                injectedProvider.on('chainChanged', handleChainChanged);
+
                 const provider = new ethers.providers.Web3Provider(injectedProvider);
                 await provider.send("eth_requestAccounts", []);
                 const signer = provider.getSigner();
-                const userAddress = await signer.getAddress();
+                const network = await provider.getNetwork();
+                currentChainId = network.chainId;
                 
-                // Create a clear, timestamped message for signing
-                signedMessageForVerification = `Login to Decentralized Stream\n\nTimestamp: ${new Date().toISOString()}`;
+                myRealAddress = await signer.getAddress();
                 
-                // Request a single signature for both session key generation and identity verification
-                const signature = await signer.signMessage(signedMessageForVerification);
-                
-                // Use the hash of the signature for the session key (private, for authentication)
-                const sessionPrivateKey = ethers.utils.sha256(ethers.utils.toUtf8Bytes(signature));
-                
-                // Store the public-facing data
-                myRealAddress = userAddress;
-                mySignature = signature; // Store the original signature to share as proof
-                
-                await initializeApp({ auth: { privateKey: sessionPrivateKey } });
+                // Now, create and publish the identity proof to link the wallet to the new session ID.
+                const proofMsg = `Verifying ownership: My address ${myRealAddress} will be represented by session ${mySessionId}`;
+                const proofSignature = await signer.signMessage(proofMsg);
+
+                await streamrClient.publish(LOBBY_STREAM_ID, {
+                    type: 'identity_proof',
+                    realAddress: myRealAddress,
+                    sessionId: mySessionId,
+                    proofMsg: proofMsg,
+                    signature: proofSignature
+                });
+
+                // Trust our own proof immediately
+                verifiedUsers.set(getColorKey(mySessionId), true);
+                userRealAddresses.set(mySessionId, myRealAddress);
+                updateUIVerification(mySessionId); 
+
             } catch (err) {
                 console.error("Wallet connection failed:", err);
+                await cleanupClient();
                 myRealAddress = '';
-                mySignature = '';
-                signedMessageForVerification = '';
+                currentChainId = null;
                 let errorMessage = "Wallet connection request was rejected or failed.";
                 if (err.code === 'ACTION_REJECTED') {
                     errorMessage = "The signature request was rejected in your wallet.";
@@ -949,30 +1170,50 @@
             }
         }
         
-        // --- Chat Logic ---
-        async function verifyUser(publisherId, realAddress, signature, signedMessage) {
-            const colorKey = getColorKey(publisherId);
-            if (verifiedUsers.has(colorKey)) return; // Already verified or checked
+        // --- Chat & Identity Logic ---
+        async function verifyIdentityProof(message) {
+            const { realAddress, sessionId, proofMsg, signature } = message;
+            if (!realAddress || !sessionId || !proofMsg || !signature) return;
+
+            const colorKey = userRealAddresses.get(sessionId) || sessionId;
+            if (verifiedUsers.has(colorKey)) return; 
 
             try {
-                const recoveredAddress = ethers.utils.verifyMessage(signedMessage, signature);
+                const recoveredAddress = ethers.utils.verifyMessage(proofMsg, signature);
                 if (recoveredAddress.toLowerCase() === realAddress.toLowerCase()) {
-                    verifiedUsers.set(colorKey, true);
-                    // Update existing messages from this user to show the verified checkmark
-                    document.querySelectorAll(`.message-entry[data-publisher-id="${publisherId}"] .chat-username`).forEach(el => {
-                        el.innerHTML = `${getDisplayName(publisherId)}:`;
-                    });
-                } else {
-                    verifiedUsers.set(colorKey, false); // Mark as failed verification
-                    console.warn(`Signature verification failed for ${realAddress}`);
+                    console.log(`Identity verified for ${realAddress} linked to session ${sessionId}`);
+                    userRealAddresses.set(sessionId, realAddress);
+                    verifiedUsers.set(getColorKey(sessionId), true);
+                    updateUIVerification(sessionId);
                 }
-            } catch (error) {
-                verifiedUsers.set(colorKey, false);
-                console.error(`Error verifying signature for ${realAddress}:`, error);
+            } catch (e) {
+                console.error("Failed to verify identity proof:", e);
             }
         }
 
-        function addMessageToUI(message, metadata) {
+        function updateUIVerification(sessionId) {
+            const broadcasterInfo = activePartitions.get(myPartition)?.broadcaster;
+            if (broadcasterInfo && broadcasterInfo.publisherId === sessionId) {
+                broadcasterDisplayName.innerHTML = `Streaming now: ${getDisplayName(sessionId)}`;
+            }
+
+            document.querySelectorAll(`.message-entry[data-publisher-id="${sessionId}"] .chat-username`).forEach(el => {
+                el.innerHTML = `${getDisplayName(sessionId)}:`;
+            });
+            
+            if (mySessionId === sessionId) {
+                if(chatUserId) chatUserId.innerHTML = getDisplayName(mySessionId);
+                if (broadcasterUserId) broadcasterUserId.innerHTML = getDisplayName(mySessionId);
+            }
+        }
+
+
+        async function addMessageToUI(message, metadata) {
+            if (typeof message !== 'object' || message === null) {
+                console.warn("Received non-object message, skipping:", message);
+                return;
+            }
+
             if (message.realAddress) { 
                 userRealAddresses.set(metadata.publisherId, message.realAddress); 
             }
@@ -980,33 +1221,67 @@
                 userNicknames.set(metadata.publisherId, message.nickname); 
             }
 
-            // Trigger verification for wallet users who haven't been checked yet
-            if (message.realAddress && message.signature && message.signedMessage) {
-                verifyUser(metadata.publisherId, message.realAddress, message.signature, message.signedMessage);
-            }
-
             const msgDiv = document.createElement('div');
-            msgDiv.className = 'message-entry text-sm';
-            msgDiv.setAttribute('data-publisher-id', metadata.publisherId); // Add attribute to find messages later
+            
+            if (message.type === 'tip' && message.txHash && message.chainId) {
+                msgDiv.className = 'tip-notification opacity-50';
+                msgDiv.innerHTML = 'Verifying tip...';
+                messagesContainer.appendChild(msgDiv);
 
-            const userSpan = document.createElement('span');
-            userSpan.className = 'chat-username';
-            userSpan.innerHTML = `${getDisplayName(metadata.publisherId)}:`;
-            userSpan.style.color = getUserColor(metadata.publisherId);
+                try {
+                    const network = NETWORKS[message.chainId];
+                    if (!network || !network.rpcUrl) throw new Error('Unsupported network for verification.');
 
-            const textSpan = document.createElement('span');
-            textSpan.className = 'chat-message-text';
-            textSpan.innerHTML = sanitizeHTML(message.text);
+                    const provider = new ethers.providers.JsonRpcProvider(network.rpcUrl);
+                    const tx = await provider.getTransaction(message.txHash);
+                    
+                    const isTxValid = tx &&
+                        tx.from.toLowerCase() === message.realAddress.toLowerCase() &&
+                        tx.to.toLowerCase() === currentBroadcasterAddress.toLowerCase();
 
-            msgDiv.appendChild(userSpan);
-            msgDiv.appendChild(textSpan);
-            messagesContainer.appendChild(msgDiv);
+                    if (!isTxValid) throw new Error('Transaction data does not match.');
+
+                    const explorerLink = `${network.explorer}/tx/${message.txHash}`;
+                    msgDiv.classList.remove('opacity-50');
+                    msgDiv.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block mr-2 align-middle" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.5 2.5 0 00-1.134 0V7.418zM12.25 10a2.5 2.5 0 01-2.25 2.45V15a.75.75 0 01-1.5 0v-2.55a2.5 2.5 0 01-2.25-2.45V9a.75.75 0 011.5 0v1h.75a.75.75 0 010 1.5H9.5v-1a.75.75 0 011.5 0v1h.75a.75.75 0 010 1.5H11v-1a.75.75 0 011.5 0V10z" />
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-1.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="align-middle">${sanitizeHTML(message.text)}</span>
+                        <a href="${explorerLink}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline ml-2">(view tx)</a>
+                    `;
+                } catch (err) {
+                    console.error("Tip verification failed:", err);
+                    msgDiv.innerHTML = 'Tip verification failed.';
+                    setTimeout(() => msgDiv.remove(), 3000);
+                }
+
+            } else {
+                msgDiv.className = 'message-entry text-sm';
+                msgDiv.setAttribute('data-publisher-id', metadata.publisherId);
+
+                const userSpan = document.createElement('span');
+                userSpan.className = 'chat-username';
+                userSpan.innerHTML = `${getDisplayName(metadata.publisherId)}:`;
+                userSpan.style.color = getUserColor(metadata.publisherId);
+
+                const textSpan = document.createElement('span');
+                textSpan.className = 'chat-message-text';
+                textSpan.innerHTML = sanitizeHTML(message.text);
+
+                msgDiv.appendChild(userSpan);
+                msgDiv.appendChild(textSpan);
+                messagesContainer.appendChild(msgDiv);
+            }
+            
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
             if(messagesContainer.children.length > MAX_MESSAGES){ 
                 messagesContainer.removeChild(messagesContainer.firstChild);
             }
         }
+
 
         async function sendMessage() {
             const text = messageInput.value.trim();
@@ -1016,8 +1291,6 @@
                     text: text,
                     realAddress: myRealAddress,
                     nickname: myNickname,
-                    signature: mySignature, // Include the signature
-                    signedMessage: signedMessageForVerification // Include the message that was signed
                 };
                 await streamrClient.publish(getStreamId('chat', myPartition), payload);
                 messageInput.value = ''; messageInput.focus();
@@ -1039,32 +1312,26 @@
         }
 
         // --- Core Logic ---
-        async function initializeApp(authOptions = {}) {
+        async function initializeApp() {
+            await cleanupClient();
             try {
-                setLoginModalState('loading');
-                loadingInstructions.textContent = 'Connecting to the P2P network...';
+                if(!loginModal.classList.contains('hidden')) {
+                    setLoginModalState('loading');
+                    loadingInstructions.textContent = 'Connecting to the P2P network...';
+                }
                 
-                streamrClient = new StreamrClient(authOptions);
+                streamrClient = new StreamrClient(); // Secure anonymous session
                 await streamrClient.connect();
                 mySessionId = await streamrClient.getAddress();
                 
-                if (myRealAddress) {
-                    userRealAddresses.set(mySessionId, myRealAddress);
-                    // A user automatically trusts their own signature
-                    verifiedUsers.set(getColorKey(mySessionId), true);
-                }
                 const nicknameKey = myRealAddress || mySessionId;
                 myNickname = sessionStorage.getItem(`nickname_${nicknameKey}`) || '';
-                myRoomName = sessionStorage.getItem(`roomName_${mySessionId}`) || ''; // Load saved room name
                 if(myNickname) {
                     userNicknames.set(mySessionId, myNickname);
                 }
                 
-                // Since the UI now has a nickname button in chat, we can set the display name there
-                // And for the broadcast page, we have a separate element
                 if(chatUserId) chatUserId.innerHTML = getDisplayName(mySessionId);
                 if (broadcasterUserId) broadcasterUserId.innerHTML = getDisplayName(mySessionId);
-                
 
                 loginModal.classList.add('hidden');
                 startLobby();
@@ -1078,11 +1345,9 @@
         function setupEventListeners() {
             // Login
             guestBtn.onclick = () => {
-                loadingInstructions.textContent = 'Establishing a secure P2P connection...';
                 initializeApp();
             };
             connectWalletBtn.onclick = () => {
-                loadingInstructions.textContent = 'Please follow the instructions in your wallet.';
                 connectWithWallet();
             };
 
@@ -1118,7 +1383,7 @@
                 if (broadcasterUserId) broadcasterUserId.innerHTML = getDisplayName(mySessionId);
                 nicknameModal.classList.add('hidden');
             };
-            nicknameModal.onclick = (e) => {
+            if (nicknameModal) nicknameModal.onclick = (e) => {
                 if (e.target === nicknameModal) { nicknameModal.classList.add('hidden'); }
             };
 
@@ -1127,8 +1392,15 @@
             const backToLobbyBtns = document.querySelectorAll('#back-to-lobby-btn, #back-to-lobby-btn-settings');
             backToLobbyBtns.forEach(btn => btn.onclick = goBackToLobby);
 
+            if (goLiveBtnLobby) {
+                goLiveBtnLobby.onclick = () => {
+                    myPartition = null; // Ensure partition is null to trigger auto-find
+                    initiateBroadcastFlow();
+                };
+            }
+
             // Watch Page Controls
-            if (fullscreenBtn) fullscreenBtn.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else canvasWrapper.requestFullscreen().catch(err => alert(`Fullscreen Error: ${err.message}`)); };
+            if (fullscreenBtn) fullscreenBtn.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else canvasWrapper.requestFullscreen().catch(err => showToast(`Fullscreen Error: ${err.message}`)); };
             if (playPauseBtn) playPauseBtn.onclick = () => {
                 isManuallyPaused = !isManuallyPaused;
                 if(playIcon) playIcon.classList.toggle('hidden', !isManuallyPaused);
@@ -1165,6 +1437,19 @@
                     setTimeout(alignAndMatchHeight, 50); 
                 };
             }
+
+            // Share buttons
+            if(shareBtnBroadcast) shareBtnBroadcast.onclick = () => {
+                const roomUrl = `${window.location.origin}/${encodeURIComponent(myRoomName)}`;
+                copyToClipboard(roomUrl);
+            };
+            if(shareBtnWatch) shareBtnWatch.onclick = () => {
+                const roomName = roomNames.get(myPartition) || '';
+                if (roomName) {
+                    const roomUrl = `${window.location.origin}/${encodeURIComponent(roomName)}`;
+                    copyToClipboard(roomUrl);
+                }
+            };
 
 
             // Settings Page Controls
@@ -1204,6 +1489,29 @@
                 span.addEventListener('click', () => { if(messageInput) messageInput.value += e; if(messageInput) messageInput.focus(); if(emojiPicker) emojiPicker.style.display = 'none'; });
                 if (emojiPicker) emojiPicker.appendChild(span);
             });
+
+            // Tipping Modal Listeners
+            if (tipBtn) {
+                tipBtn.onclick = () => {
+                    updateTipModalUI(); // Populate tokens based on current network
+                    if (tipModal) tipModal.classList.remove('hidden');
+                    if (tipInitialView) tipInitialView.style.display = 'block';
+                    if (tipLoadingView) tipLoadingView.style.display = 'none';
+                    if (tipSuccessView) tipSuccessView.style.display = 'none';
+                    if (tipAmountInput) tipAmountInput.value = '';
+                    if (tipErrorMsg) tipErrorMsg.textContent = '';
+                };
+            }
+            if (cancelTipBtn) cancelTipBtn.onclick = () => tipModal.classList.add('hidden');
+            if (closeTipSuccessBtn) closeTipSuccessBtn.onclick = () => tipModal.classList.add('hidden');
+            if (sendTipBtn) sendTipBtn.onclick = sendTip;
+            if (tipModal) tipModal.onclick = (e) => { if (e.target === tipModal) tipModal.classList.add('hidden'); };
+            if (tipTokenSelect) tipTokenSelect.onchange = () => {
+                const selectedToken = tipTokenSelect.value;
+                const network = NETWORKS[currentChainId] || { symbol: 'Coin' };
+                const symbol = selectedToken === 'native' ? network.symbol : selectedToken;
+                tipAmountLabel.textContent = `Amount (${symbol})`;
+            };
             
             // Global Listeners
             document.addEventListener('click', (e) => { if (emojiPicker && !emojiPicker.contains(e.target) && e.target !== emojiBtn) { emojiPicker.style.display = 'none'; } });
@@ -1215,7 +1523,7 @@
             if(lobbyStatus) lobbyStatus.textContent = 'Requesting permissions...';
             try {
                 const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                tempStream.getTracks().forEach(track => tempStream.removeTrack(track)); // Stop immediately
+                tempStream.getTracks().forEach(track => track.stop()); // Stop immediately
                 showPage('settings');
                 if (roomNameInput) roomNameInput.value = ''; // Clear input on page load
 
@@ -1234,11 +1542,19 @@
                 } else {
                     if(lobbyStatus) lobbyStatus.textContent = `An error occurred: ${err.name}.`;
                 }
-                setTimeout(() => { if(lobbyStatus) lobbyStatus.textContent = 'Select a room to watch or start your own stream.'; }, 3000);
+                setTimeout(() => { if(lobbyStatus) updateStreamListUI(); }, 3000);
             }
         }
 
         function main() {
+            // --- Parse URL for deep links ---
+            const path = window.location.pathname;
+            if (path && path !== '/') {
+                // Remove leading slash and decode
+                roomNameToJoin = decodeURIComponent(path.substring(1));
+                console.log(`Attempting to join room from URL: "${roomNameToJoin}"`);
+            }
+
             // --- Initialize UI Elements ---
             mainContainer = document.getElementById('main-container');
             videoColumn = document.getElementById('video-column');
@@ -1311,8 +1627,31 @@
             lobbyPage = document.getElementById('lobby-page');
             streamListContainer = document.getElementById('stream-list-container');
             lobbyStatus = document.getElementById('lobby-status');
-            roomNameInput = document.getElementById('roomNameInput'); // Initialize new element
-            roomNameOnWatchPage = document.getElementById('roomNameOnWatchPage'); // Initialize new element
+            roomNameInput = document.getElementById('roomNameInput'); 
+            roomNameOnWatchPage = document.getElementById('roomNameOnWatchPage');
+            roomNameOnBroadcastPage = document.getElementById('roomNameOnBroadcastPage');
+            shareBtnBroadcast = document.getElementById('shareBtnBroadcast');
+            shareBtnWatch = document.getElementById('shareBtnWatch');
+            toast = document.getElementById('toast');
+            goLiveBtnLobby = document.getElementById('go-live-btn-lobby');
+            
+            // --- Tipping UI ---
+            broadcasterDisplayName = document.getElementById('broadcaster-display-name');
+            tipBtn = document.getElementById('tipBtn');
+            tipModal = document.getElementById('tipModal');
+            tipInitialView = document.getElementById('tip-initial-view');
+            tipLoadingView = document.getElementById('tip-loading-view');
+            tipSuccessView = document.getElementById('tip-success-view');
+            tipRecipientName = document.getElementById('tip-recipient-name');
+            tipAmountInput = document.getElementById('tipAmountInput');
+            tipErrorMsg = document.getElementById('tip-error-msg');
+            cancelTipBtn = document.getElementById('cancelTipBtn');
+            sendTipBtn = document.getElementById('sendTipBtn');
+            closeTipSuccessBtn = document.getElementById('closeTipSuccessBtn');
+            tipEtherscanLink = document.getElementById('tip-etherscan-link');
+            tipTokenSelect = document.getElementById('tipTokenSelect');
+            tipAmountLabel = document.getElementById('tipAmountLabel');
+
 
             // --- Setup Event Listeners ---
             setupEventListeners();
@@ -1325,6 +1664,24 @@
             stopAudioMeter();
             settingsStatus.textContent = '';
             
+            // Auto-find an available partition if one isn't already selected
+            if (myPartition === null) {
+                let foundPartition = false;
+                for (let i = 1; i <= PARTITIONS; i++) {
+                    const partitionInfo = activePartitions.get(i);
+                    const isLive = partitionInfo && partitionInfo.broadcaster && (Date.now() - partitionInfo.lastSeen < VIEWER_TIMEOUT_MS);
+                    if (!isLive) {
+                        myPartition = i;
+                        foundPartition = true;
+                        break;
+                    }
+                }
+                if (!foundPartition) {
+                    settingsStatus.textContent = 'Sorry, all rooms are currently full. Please try again later.';
+                    return;
+                }
+            }
+
             const roomName = sanitizeHTML(roomNameInput.value.trim());
             if (roomName.length === 0) {
                 settingsStatus.textContent = 'Please enter a name for your room.';
@@ -1362,7 +1719,7 @@
                     const vConfig = { codec:'avc1.64002A', width:vSettings.width, height:vSettings.height, bitrate:vSettings.bitrate, framerate:vSettings.framerate, hardwareAcceleration:'prefer-hardware', latencyMode:perf };
                     if (!(await VideoEncoder.isConfigSupported(vConfig)).supported) {
                         goBackToLobby();
-                        alert(`Video settings not supported.`);
+                        showToast(`Video settings not supported.`);
                         return;
                     }
                     videoEncoder = new VideoEncoder({ output:(c,m) => handleVideoEncoderOutput(c,m,vSettings), error:e => console.error(`VErr: ${e.message}`) });
@@ -1377,6 +1734,7 @@
                     if(hasVideo) statusText += " & "; statusText += `Audio (${aQualityTxt})`;
                 }
                 broadcastStatus.textContent = statusText;
+                if(roomNameOnBroadcastPage) roomNameOnBroadcastPage.textContent = `Room: "${myRoomName}"`;
             } catch (err) {
                 console.error(`Broadcast start error: ${err.message}`, err);
                 settingsStatus.textContent = `An unexpected error occurred: ${err.name}. Please try again.`;
@@ -1606,8 +1964,12 @@
             if (streamHealthInterval) clearInterval(streamHealthInterval);
             lastChunkReceivedTimestamp = 0; statusDot.className = 'status-dot dot-red'; statusDot.title = 'Disconnected';
             detailedWatchStatus = 'Looking for a broadcast...';
-            broadcasterInfoOnWatchPage.textContent = '';
+            
             broadcasterInfoOnWatchPage.classList.add('hidden');
+            broadcasterDisplayName.textContent = '';
+            currentBroadcasterAddress = null; // Reset tipping address
+            if (tipBtn) tipBtn.disabled = true;
+
             if (videoSubscription) await videoSubscription.unsubscribe(); if (audioSubscription) await audioSubscription.unsubscribe();
             if (videoDecoder?.state !== 'closed') videoDecoder.close(); if (audioDecoder?.state !== 'closed') audioDecoder.close();
             if(audioContext?.state !== 'closed') await audioContext.close();
@@ -1642,9 +2004,7 @@
                         publisherId: mySessionId,
                         realAddress: myRealAddress,
                         nickname: myNickname,
-                        signature: mySignature,
-                        signedMessage: signedMessageForVerification,
-                        roomName: myRoomName // Include the room name here
+                        roomName: myRoomName
                     }
                 };
                 // Publish to the lobby stream to announce our presence
@@ -1665,23 +2025,44 @@
             currentUserId = `viewer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             await streamrClient.publish(getStreamId('presence', myPartition), { type:'join', userId:currentUserId });
             presenceHeartbeatInterval = setInterval(() => streamrClient.publish(getStreamId('presence', myPartition), { type:'heartbeat', userId:currentUserId }), HEARTBEAT_INTERVAL_MS);
+            
             presenceSubscription = await streamrClient.subscribe(LOBBY_STREAM_ID, msg => { 
                 if (msg.type === 'stream_update' && msg.partition === myPartition) {
                     if(msg.broadcaster) {
                         updateViewerCountUI(msg.viewerCount); 
-                        const { publisherId, realAddress, nickname, signature, signedMessage, roomName } = msg.broadcaster;
+                        const { publisherId, realAddress, nickname, roomName } = msg.broadcaster;
+                        
+                        // Store broadcaster address for tipping
+                        currentBroadcasterAddress = realAddress || null;
+
                         if (realAddress) { userRealAddresses.set(publisherId, realAddress); }
                         if (nickname) { userNicknames.set(publisherId, nickname); }
                         if (roomName) { 
                             roomNames.set(myPartition, roomName); 
                             roomNameOnWatchPage.textContent = roomName; // Update the room name on watch page
                         }
-                        if (realAddress && signature && signedMessage) {
-                            verifyUser(publisherId, realAddress, signature, signedMessage);
-                        }
-                        broadcasterInfoOnWatchPage.innerHTML = `Streaming now: ${getDisplayName(publisherId)}`;
+                       
+                        // Update UI
+                        broadcasterDisplayName.innerHTML = `Streaming now: ${getDisplayName(publisherId)}`;
+                        if (tipRecipientName) tipRecipientName.innerHTML = getDisplayName(publisherId);
                         broadcasterInfoOnWatchPage.classList.remove('hidden');
+
+                        // Enable/disable tip button
+                        if (tipBtn) {
+                            const canTip = myRealAddress && currentBroadcasterAddress;
+                            tipBtn.disabled = !canTip;
+                        }
+                        
                         setTimeout(alignAndMatchHeight, 50); // Re-align after content changes
+                    } else {
+                        // Broadcaster has left
+                        broadcasterInfoOnWatchPage.classList.add('hidden');
+                        broadcasterDisplayName.textContent = '';
+                        currentBroadcasterAddress = null;
+                        if (tipBtn) tipBtn.disabled = true;
+                        detailedWatchStatus = 'Stream has ended. Returning to lobby...';
+                        watchStatus.textContent = detailedWatchStatus;
+                        setTimeout(goBackToLobby, 3000); // Go back after a delay
                     }
                 }
             });
@@ -1693,18 +2074,143 @@
             goBackToLobby();
         }
 
+        // --- Tipping Logic ---
+        function updateTipModalUI() {
+            if (!currentChainId) return;
+            const network = NETWORKS[currentChainId];
+            if (!network) {
+                tipTokenSelect.innerHTML = '<option value="">Unsupported Network</option>';
+                return;
+            }
+
+            tipTokenSelect.innerHTML = ''; // Clear previous options
+            
+            // Add native currency
+            const nativeOption = document.createElement('option');
+            nativeOption.value = 'native';
+            nativeOption.textContent = network.symbol;
+            tipTokenSelect.appendChild(nativeOption);
+
+            // Add available ERC20 tokens for the network
+            const availableTokens = TOKEN_ADDRESSES[currentChainId] || {};
+            for (const tokenSymbol in availableTokens) {
+                const tokenOption = document.createElement('option');
+                tokenOption.value = tokenSymbol;
+                tokenOption.textContent = tokenSymbol;
+                tipTokenSelect.appendChild(tokenOption);
+            }
+
+            // Trigger change event to update the amount label
+            tipTokenSelect.dispatchEvent(new Event('change'));
+        }
+
+        async function sendTip() {
+            if (!currentBroadcasterAddress) {
+                tipErrorMsg.textContent = 'Broadcaster address not found.';
+                return;
+            }
+
+            const amountStr = tipAmountInput.value;
+            if (!amountStr || isNaN(amountStr) || parseFloat(amountStr) <= 0) {
+                tipErrorMsg.textContent = 'Please enter a valid amount.';
+                return;
+            }
+            tipErrorMsg.textContent = '';
+
+            const selectedToken = tipTokenSelect.value;
+
+            tipInitialView.style.display = 'none';
+            tipLoadingView.style.display = 'block';
+
+            try {
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+                let tx;
+
+                if (selectedToken === 'native') {
+                    // --- NATIVE CURRENCY TRANSFER ---
+                    const amountWei = ethers.utils.parseEther(amountStr);
+                    tx = await signer.sendTransaction({
+                        to: currentBroadcasterAddress,
+                        value: amountWei
+                    });
+                } else {
+                    // --- ERC20 TOKEN TRANSFER ---
+                    const tokenAddress = TOKEN_ADDRESSES[currentChainId][selectedToken];
+                    const tokenDecimals = TOKEN_DECIMALS[selectedToken];
+                    if (!tokenAddress || !tokenDecimals) {
+                        throw new Error(`Token ${selectedToken} not configured for this network.`);
+                    }
+                    const amountInSmallestUnit = ethers.utils.parseUnits(amountStr, tokenDecimals);
+                    const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+                    tx = await tokenContract.transfer(currentBroadcasterAddress, amountInSmallestUnit);
+                }
+
+                await tx.wait(); // Wait for transaction to be mined
+
+                // --- SEND CHAT NOTIFICATION ---
+                const networkName = NETWORKS[currentChainId]?.name || 'the network';
+                const tokenSymbol = selectedToken === 'native' ? (NETWORKS[currentChainId]?.symbol || 'coins') : selectedToken;
+                const shortTipper = `${myRealAddress.slice(0, 6)}...${myRealAddress.slice(-4)}`;
+                const shortRecipient = `${currentBroadcasterAddress.slice(0, 6)}...${currentBroadcasterAddress.slice(-4)}`;
+                const tipMessageText = `${shortTipper} tipped ${amountStr} ${tokenSymbol} to ${shortRecipient} via ${networkName}`;
+                
+                try {
+                    await streamrClient.publish(getStreamId('chat', myPartition), { 
+                        type: 'tip', 
+                        text: tipMessageText,
+                        txHash: tx.hash,
+                        chainId: currentChainId,
+                        realAddress: myRealAddress
+                    });
+                } catch (err) {
+                    console.error("Failed to publish tip notification:", err);
+                }
+
+                // --- SHOW SUCCESS ---
+                tipLoadingView.style.display = 'none';
+                tipSuccessView.style.display = 'block';
+                const explorerUrl = NETWORKS[currentChainId]?.explorer;
+                if(explorerUrl) {
+                    tipEtherscanLink.href = `${explorerUrl}/tx/${tx.hash}`;
+                    tipEtherscanLink.style.display = 'inline-block';
+                } else {
+                    tipEtherscanLink.style.display = 'none';
+                }
+
+            } catch (err) {
+                console.error("Tipping failed:", err);
+                tipLoadingView.style.display = 'none';
+                tipInitialView.style.display = 'block';
+                let errorMessage = 'Transaction failed.';
+                if (err.code === 'ACTION_REJECTED') {
+                    errorMessage = 'Transaction rejected in wallet.';
+                } else if (err.message.includes('insufficient funds')) {
+                    errorMessage = 'Insufficient funds for transaction.';
+                }
+                tipErrorMsg.textContent = errorMessage;
+            }
+        }
+
+
         // --- Navigation and Cleanup ---
         async function goBackToLobby() {
+            // Clean the URL path when returning to the lobby
+            if (window.location.pathname !== '/') {
+                window.history.pushState({}, document.title, window.location.origin);
+            }
             if (isBroadcasting) {
                 await stopBroadcast();
-                startLobby();
+                initializeApp();
             } else if (isViewing) {
                 await stopViewing();
-                startLobby();
+                initializeApp();
             } else {
-                startLobby();
+                initializeApp();
             }
         }
     </script>
 </body>
 </html>
+
+

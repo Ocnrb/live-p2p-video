@@ -613,12 +613,9 @@ const renderAndSchedule = () => {
                     const source = audioContext.createBufferSource();
                     source.buffer = buffer;
                     source.connect(gainNode);
-                    let scheduleTime = nextAudioScheduleTime;
-                    if (scheduleTime < audioContext.currentTime) {
-                        scheduleTime = audioContext.currentTime;
-                    }
-                    source.start(scheduleTime);
-                    setNextAudioScheduleTime(scheduleTime + buffer.duration);
+                    source.start(nextAudioScheduleTime);
+                    setNextAudioScheduleTime(nextAudioScheduleTime + buffer.duration);
+                    
                 } catch (err) {
                     console.error("Error scheduling audio:", err);
                 } finally {

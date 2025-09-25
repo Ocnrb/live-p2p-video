@@ -1,6 +1,6 @@
 {
 "name": "P2P Streaming Platform",
-"short_name": "P2P Stream",
+"short_name": "P2P Streaming",
 "description": "A decentralized peer-to-peer streaming platform.",
 "start_url": "/",
 "display": "standalone",
@@ -33,3 +33,4 @@
 ]
 
 }
+

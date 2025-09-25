@@ -591,7 +591,7 @@ const renderAndSchedule = () => {
                     setIsPlaying(true);
                     const newPlaybackStartTime = audioContext.currentTime;
                     setPlaybackStartTime(newPlaybackStartTime);
-		            setNextAudioScheduleTime(newPlaybackStartTime);
+		    setNextAudioScheduleTime(newPlaybackStartTime);
                     watchStatus.textContent = detailedWatchStatus;
                     statusDot.className = 'status-dot dot-green';
                 }

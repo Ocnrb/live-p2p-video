@@ -445,5 +445,19 @@
 
     <!-- Changed script to type="module" and pointed to main.js -->
     <script type="module" src="main.js" defer></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                }).catch(error => {
+                    console.error('Service Worker registration failed:', error);
+                });
+            });
+        }   
+    </script>
+
 </body>
 </html>

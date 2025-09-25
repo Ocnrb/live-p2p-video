@@ -2,30 +2,31 @@
 "name": "P2P Streaming Platform",
 "short_name": "P2P Stream",
 "description": "A decentralized peer-to-peer streaming platform.",
-"start_url": "./",
+"start_url": "/",
 "display": "standalone",
+"scope": "/",
 "background_color": "#18181b",
 "theme_color": "#0369a1",
 "icons": [
 {
-"src": "favicon-96x96.png",
+"src": "favicon/favicon-96x96.png",
 "sizes": "96x96",
 "type": "image/png"
 },
 {
-"src": "web-app-manifest-192x192.png",
+"src": "favicon/web-app-manifest-192x192.png",
 "sizes": "192x192",
 "type": "image/png",
 "purpose": "maskable"
 },
 {
-"src": "web-app-manifest-512x512.png",
+"src": "favicon/web-app-manifest-512x512.png",
 "sizes": "512x512",
 "type": "image/png",
 "purpose": "maskable"
 },
 {
-"src": "safari-pinned-tab.svg",
+"src": "favicon/safari-pinned-tab.svg",
 "sizes": "any",
 "type": "image/svg+xml"
 }

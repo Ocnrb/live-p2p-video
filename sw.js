@@ -1,52 +1,58 @@
-const CACHE_NAME = 'p2p-streaming-cache-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  // Note: We won't cache main.js and styles.css as they are not present yet.
-  // We will add them in a future step.
-  '/favicon/favicon.ico',
-  '/favicon/site.webmanifest'
-];
+const CACHE_NAME = 'p2p-streaming-cache-v2';
 
-// Install a service worker
+// The install event is now simpler. We don't pre-cache a fixed list of URLs.
+// This makes the installation much less likely to fail.
 self.addEventListener('install', event => {
-  // Perform install steps
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
-  );
+  console.log('Service Worker: Installing...');
+  // The skipWaiting() method allows this service worker to activate
+  // as soon as it has finished installing.
+  self.skipWaiting();
 });
 
-// Cache and return requests
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      }
-    )
-  );
-});
-
-// Update a service worker
+// The activate event is used to clean up old caches.
 self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
+    console.log('Service Worker: Activating...');
+    const cacheWhitelist = [CACHE_NAME];
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    if (cacheWhitelist.indexOf(cacheName) === -1) {
+                        console.log('Service Worker: Deleting old cache', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => self.clients.claim()) // Take control of open pages
+    );
+});
+
+// The fetch event is the core of this service worker.
+// It uses a "Network falling back to Cache" strategy.
+self.addEventListener('fetch', event => {
+  // We only want to handle GET requests.
+  if (event.request.method !== 'GET') {
+      return;
+  }
+
+  event.respondWith(
+    caches.open(CACHE_NAME).then(cache => {
+      // 1. Try to fetch the resource from the network.
+      return fetch(event.request)
+        .then(response => {
+          // If the request is successful, we cache a clone of the response and return it.
+          if (response.status === 200) {
+            cache.put(event.request, response.clone());
           }
+          return response;
         })
-      );
+        .catch(err => {
+          // 2. If the network request fails (e.g., offline), try to serve from the cache.
+          return cache.match(event.request).then(response => {
+            return response; // Will be undefined if not in cache.
+          });
+        });
     })
   );
 });
+

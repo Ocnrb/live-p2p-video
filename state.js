@@ -45,6 +45,11 @@ export let presenceHeartbeatInterval = null,
 export let detailedWatchStatus = 'Looking for a broadcast...';
 export let lobbyUpdateTimeout = null;
 
+// --- Broadcasting State ---
+export let videoSequenceNumber = 0;
+export let audioSequenceNumber = 0;
+export let latestVideoTimestamp = 0;
+
 // --- Viewer Playback State ---
 export let videoBuffer = [],
     audioBuffer = [];
@@ -57,6 +62,9 @@ export let nextAudioScheduleTime = 0;
 export let lastRenderedFrame = null,
     currentStreamConfigId = null;
 export let waitingForKeyframe = false;
+export let expectedVideoSequenceNumber = 0;
+export let expectedAudioSequenceNumber = 0;
+export let syncOffset = 0; // The difference between video and audio timestamps for synchronization
 
 // --- Data Maps ---
 export const userNicknames = new Map();
@@ -68,129 +76,53 @@ export const activePartitions = new Map();
 
 
 // --- State Setter Functions ---
-export function setStreamrClient(client) {
-    streamrClient = client;
-}
-export function setMySessionId(id) {
-    mySessionId = id;
-}
-export function setMyNickname(nickname) {
-    myNickname = nickname;
-}
-export function setMyPartition(partition) {
-    myPartition = partition;
-}
-export function setIsBroadcasting(status) {
-    isBroadcasting = status;
-}
-export function setIsViewing(status) {
-    isViewing = status;
-}
-export function setMyRealAddress(address) {
-    myRealAddress = address;
-}
-export function setCurrentChainId(id) {
-    currentChainId = id;
-}
-export function setBroadcastSourceType(type) {
-    broadcastSourceType = type;
-}
-export function setRoomNameToJoin(name) {
-    roomNameToJoin = name;
-}
-export function setMyRoomName(name) {
-    myRoomName = name;
-}
-export function setLocalStream(stream) {
-    localStream = stream;
-}
-export function setVideoEncoder(encoder) {
-    videoEncoder = encoder;
-}
-export function setAudioEncoder(encoder) {
-    audioEncoder = encoder;
-}
-export function setLastKeyFrameTimestamp(timestamp) {
-    lastKeyFrameTimestamp = timestamp;
-}
-export function setLobbyUpdateTimeout(timeout) {
-    lobbyUpdateTimeout = timeout;
-}
-export function setChatSubscription(subscription) {
-    chatSubscription = subscription;
-}
-export function setLobbySubscription(subscription) {
-    lobbySubscription = subscription;
-}
-export function setCurrentBroadcasterAddress(address) {
-    currentBroadcasterAddress = address;
-}
-export function setEffectiveBufferTargetMs(ms) {
-    effectiveBufferTargetMs = ms;
-}
-export function setDetailedWatchStatus(status) {
-    detailedWatchStatus = status;
-}
-export function setStreamHealthInterval(interval) {
-    streamHealthInterval = interval;
-}
-export function setAudioContext(context) {
-    audioContext = context;
-}
-export function setGainNode(node) {
-    gainNode = node;
-}
-export function setVideoDecoder(decoder) {
-    videoDecoder = decoder;
-}
-export function setAudioDecoder(decoder) {
-    audioDecoder = decoder;
-}
-export function setWaitingForKeyframe(status) {
-    waitingForKeyframe = status;
-}
-export function setLastRenderedFrame(frame) {
-    lastRenderedFrame = frame;
-}
-export function setIsPlaying(status) {
-    isPlaying = status;
-}
-export function setPlaybackStartTime(time) {
-    playbackStartTime = time;
-}
-export function setMediaStartTime(time) {
-    mediaStartTime = time;
-}
-export function setNextAudioScheduleTime(time) {
-    nextAudioScheduleTime = time;
-}
-export function setCurrentStreamConfigId(id) {
-    currentStreamConfigId = id;
-}
-export function setVideoSubscription(subscription) {
-    videoSubscription = subscription;
-}
-export function setAudioSubscription(subscription) {
-    audioSubscription = subscription;
-}
-export function setLastChunkReceivedTimestamp(timestamp) {
-    lastChunkReceivedTimestamp = timestamp;
-}
-export function setIsManuallyPaused(status) {
-    isManuallyPaused = status;
-}
-export function setCurrentUserId(id) {
-    currentUserId = id;
-}
-export function setPresenceHeartbeatInterval(interval) {
-    presenceHeartbeatInterval = interval;
-}
-export function setPresenceSubscription(subscription) {
-    presenceSubscription = subscription;
-}
-export function setBroadcasterPresenceInterval(interval) {
-    broadcasterPresenceInterval = interval;
-}
+export function setStreamrClient(client) { streamrClient = client; }
+export function setMySessionId(id) { mySessionId = id; }
+export function setMyNickname(nickname) { myNickname = nickname; }
+export function setMyPartition(partition) { myPartition = partition; }
+export function setIsBroadcasting(status) { isBroadcasting = status; }
+export function setIsViewing(status) { isViewing = status; }
+export function setMyRealAddress(address) { myRealAddress = address; }
+export function setCurrentChainId(id) { currentChainId = id; }
+export function setBroadcastSourceType(type) { broadcastSourceType = type; }
+export function setRoomNameToJoin(name) { roomNameToJoin = name; }
+export function setMyRoomName(name) { myRoomName = name; }
+export function setLocalStream(stream) { localStream = stream; }
+export function setVideoEncoder(encoder) { videoEncoder = encoder; }
+export function setAudioEncoder(encoder) { audioEncoder = encoder; }
+export function setLastKeyFrameTimestamp(timestamp) { lastKeyFrameTimestamp = timestamp; }
+export function setLobbyUpdateTimeout(timeout) { lobbyUpdateTimeout = timeout; }
+export function setChatSubscription(subscription) { chatSubscription = subscription; }
+export function setLobbySubscription(subscription) { lobbySubscription = subscription; }
+export function setCurrentBroadcasterAddress(address) { currentBroadcasterAddress = address; }
+export function setEffectiveBufferTargetMs(ms) { effectiveBufferTargetMs = ms; }
+export function setDetailedWatchStatus(status) { detailedWatchStatus = status; }
+export function setStreamHealthInterval(interval) { streamHealthInterval = interval; }
+export function setAudioContext(context) { audioContext = context; }
+export function setGainNode(node) { gainNode = node; }
+export function setVideoDecoder(decoder) { videoDecoder = decoder; }
+export function setAudioDecoder(decoder) { audioDecoder = decoder; }
+export function setWaitingForKeyframe(status) { waitingForKeyframe = status; }
+export function setLastRenderedFrame(frame) { lastRenderedFrame = frame; }
+export function setIsPlaying(status) { isPlaying = status; }
+export function setPlaybackStartTime(time) { playbackStartTime = time; }
+export function setMediaStartTime(time) { mediaStartTime = time; }
+export function setNextAudioScheduleTime(time) { nextAudioScheduleTime = time; }
+export function setCurrentStreamConfigId(id) { currentStreamConfigId = id; }
+export function setVideoSubscription(subscription) { videoSubscription = subscription; }
+export function setAudioSubscription(subscription) { audioSubscription = subscription; }
+export function setLastChunkReceivedTimestamp(timestamp) { lastChunkReceivedTimestamp = timestamp; }
+export function setIsManuallyPaused(status) { isManuallyPaused = status; }
+export function setCurrentUserId(id) { currentUserId = id; }
+export function setPresenceHeartbeatInterval(interval) { presenceHeartbeatInterval = interval; }
+export function setPresenceSubscription(subscription) { presenceSubscription = subscription; }
+export function setBroadcasterPresenceInterval(interval) { broadcasterPresenceInterval = interval; }
+export function setVideoSequenceNumber(seq) { videoSequenceNumber = seq; }
+export function setAudioSequenceNumber(seq) { audioSequenceNumber = seq; }
+export function setExpectedVideoSequenceNumber(seq) { expectedVideoSequenceNumber = seq; }
+export function setExpectedAudioSequenceNumber(seq) { expectedAudioSequenceNumber = seq; }
+export function setLatestVideoTimestamp(timestamp) { latestVideoTimestamp = timestamp; }
+export function setSyncOffset(offset) { syncOffset = offset; }
 
 
 export function initializeUiElements() {

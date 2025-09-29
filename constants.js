@@ -7,6 +7,7 @@ export const CHAT_STREAM_BASE = '0x75fc31876b8cd9af59a0e882d87dd8468c2d0e35/chat
 export const PARTITIONS = 10; // Total number of available partitions
 export const MAX_MESSAGES = 100;
 export const LIVE_BUFFER_TARGET_MS = 250; // Increased for audio stability
+export const MAX_CHUNK_PAYLOAD_SIZE = 64 * 1024; // 200 KB, leaves buffer for metadata
 
 // --- Emojis ---
 export const emojis = [

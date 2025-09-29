@@ -16,6 +16,8 @@ import {
     broadcastSourceType, resolutionSlider, framerateSlider, bitrateSlider, performanceSlider,
     audioQualitySlider, keyframeIntervalSlider, videoSourceSelect, roomNameInput,
     bufferSlider, volumeSlider, messageInput, tipRecipientName,
+    videoSequenceNumber, audioSequenceNumber, expectedVideoSequenceNumber, expectedAudioSequenceNumber,
+    latestVideoTimestamp, syncOffset,
     setMyPartition, setMyRoomName, setIsBroadcasting, setIsViewing,
     setVideoEncoder, setAudioEncoder, setAudioDecoder, setVideoDecoder, setLocalStream, setVideoSubscription,
     setAudioSubscription, setPresenceSubscription, setChatSubscription, setLobbySubscription,
@@ -24,7 +26,9 @@ import {
     setIsPlaying, setPlaybackStartTime, setMediaStartTime, setNextAudioScheduleTime,
     setLastRenderedFrame, setCurrentStreamConfigId, setWaitingForKeyframe, setAudioContext,
     setGainNode, setCurrentUserId, setLobbyUpdateTimeout, setCurrentBroadcasterAddress,
-    setEffectiveBufferTargetMs, setDetailedWatchStatus, setIsManuallyPaused, setRoomNameToJoin
+    setEffectiveBufferTargetMs, setDetailedWatchStatus, setIsManuallyPaused, setRoomNameToJoin,
+    setVideoSequenceNumber, setAudioSequenceNumber, setExpectedVideoSequenceNumber, setExpectedAudioSequenceNumber,
+    setLatestVideoTimestamp, setSyncOffset
 } from './state.js';
 
 import {
@@ -34,7 +38,8 @@ import {
     STALE_STREAM_TIMEOUT_MS,
     resolutions,
     audioQualities,
-    HEARTBEAT_INTERVAL_MS
+    HEARTBEAT_INTERVAL_MS,
+    MAX_CHUNK_PAYLOAD_SIZE
 } from './constants.js';
 
 import {
@@ -210,6 +215,11 @@ export async function joinStream(partition) {
     setIsViewing(true);
     startViewerPresence();
     await startChat();
+    
+    // Reset sequence numbers and sync offset for the new stream
+    setExpectedVideoSequenceNumber(0);
+    setExpectedAudioSequenceNumber(0);
+    setSyncOffset(0);
 
     setEffectiveBufferTargetMs(parseInt(bufferSlider.value, 10));
 
@@ -276,9 +286,19 @@ export async function joinStream(partition) {
             if (!isPlaying) watchStatus.textContent = "Buffering...";
         }
     };
-    const newVideoSubscription = await streamrClient.subscribe(getStreamId('video', myPartition), msg => {
-        if (!isViewing) return;
-        handleMessage();
+    
+    const fragmentedVideoChunks = new Map();
+
+    function processVideoMessage(msg) {
+        if (msg.seq < expectedVideoSequenceNumber) {
+            console.log(`Received old video chunk (seq ${msg.seq}), ignoring.`);
+            return;
+        }
+        if (msg.seq > expectedVideoSequenceNumber) {
+            console.warn(`Lost ${msg.seq - expectedVideoSequenceNumber} video chunks. Expected ${expectedVideoSequenceNumber}, got ${msg.seq}.`);
+        }
+        setExpectedVideoSequenceNumber(msg.seq + 1);
+
         if (msg.config) {
             const newConfig = msg.config,
                 newConfigId = `${newConfig.codedWidth}x${newConfig.codedHeight}`;
@@ -287,6 +307,9 @@ export async function joinStream(partition) {
             setDetailedWatchStatus(newDetailedWatchStatus);
             watchStatus.textContent = newDetailedWatchStatus;
             if (newConfigId !== currentStreamConfigId) {
+                setExpectedVideoSequenceNumber(1); 
+                setExpectedAudioSequenceNumber(0);
+                setSyncOffset(0);
                 setCurrentStreamConfigId(newConfigId);
                 if (newConfig.description) newConfig.description = new Uint8Array(newConfig.description).buffer;
                 videoDecoder.configure(newConfig);
@@ -321,12 +344,69 @@ export async function joinStream(partition) {
                 console.error("Error decoding video chunk:", e);
             }
         }
+    }
+    
+    const newVideoSubscription = await streamrClient.subscribe(getStreamId('video', myPartition), msg => {
+        if (!isViewing) return;
+        handleMessage();
+
+        if (msg.isFragment) {
+            if (!fragmentedVideoChunks.has(msg.timestamp)) {
+                fragmentedVideoChunks.set(msg.timestamp, {
+                    fragments: new Array(msg.fragmentCount),
+                    receivedCount: 0,
+                    totalCount: msg.fragmentCount,
+                    originalMessage: { ...msg }
+                });
+            }
+            
+            const chunkAssembly = fragmentedVideoChunks.get(msg.timestamp);
+            if (!chunkAssembly.fragments[msg.fragmentIndex]) {
+                chunkAssembly.fragments[msg.fragmentIndex] = base64ToArrayBuffer(msg.data_base64);
+                chunkAssembly.receivedCount++;
+            }
+    
+            if (chunkAssembly.receivedCount === chunkAssembly.totalCount) {
+                const totalLength = chunkAssembly.fragments.reduce((acc, val) => acc + val.byteLength, 0);
+                const combined = new Uint8Array(totalLength);
+                let offset = 0;
+                for (const fragment of chunkAssembly.fragments) {
+                    combined.set(new Uint8Array(fragment), offset);
+                    offset += fragment.byteLength;
+                }
+                
+                const finalMessage = { ...chunkAssembly.originalMessage };
+                finalMessage.data_base64 = arrayBufferToBase64(combined.buffer);
+                delete finalMessage.isFragment;
+                delete finalMessage.fragmentIndex;
+                delete finalMessage.fragmentCount;
+                fragmentedVideoChunks.delete(msg.timestamp);
+                processVideoMessage(finalMessage);
+            }
+        } else {
+            processVideoMessage(msg);
+        }
     });
     setVideoSubscription(newVideoSubscription);
 
     const newAudioSubscription = await streamrClient.subscribe(getStreamId('audio', myPartition), msg => {
         if (!isViewing) return;
         handleMessage();
+
+        if (msg.seq < expectedAudioSequenceNumber) {
+            console.log(`Received old audio chunk (seq ${msg.seq}), ignoring.`);
+            return;
+        }
+        if (msg.seq > expectedAudioSequenceNumber) {
+            console.warn(`Lost ${msg.seq - expectedAudioSequenceNumber} audio chunks. Expected ${expectedAudioSequenceNumber}, got ${msg.seq}.`);
+        }
+        setExpectedAudioSequenceNumber(msg.seq + 1);
+
+        // Integrated Sync Logic: Use the sync timestamp from the audio chunk to set the offset for video playback
+        if (msg.syncVideoTimestamp) {
+            setSyncOffset(msg.syncVideoTimestamp - msg.timestamp);
+        }
+
         if (audioDecoder.state === 'unconfigured') audioDecoder.configure({
             codec: 'opus',
             sampleRate: 48000,
@@ -400,7 +480,7 @@ export async function startBroadcast() {
             localVideo.classList.add('camera-view');
         } else {
             newLocalStream = await navigator.mediaDevices.getDisplayMedia({
-                video: { cursor: "always" },
+                video: { cursor: "always", frameRate: 60 },
                 audio: audioConstraints
             });
             localVideo.classList.remove('camera-view');
@@ -421,12 +501,19 @@ export async function startBroadcast() {
         startBroadcasterPresence();
         await startChat();
         localVideo.srcObject = newLocalStream;
+        
+        // --- Encoder Configuration ---
         let vSettings, statusText = `Broadcasting ${broadcastSourceType} `;
+        let videoReader, audioReader;
+
         if (hasVideo) {
             const trackSettings = newLocalStream.getVideoTracks()[0].getSettings();
             const bitrate = parseInt(bitrateSlider.value, 10);
             const perf = (performanceSlider.value === '0') ? 'realtime' : 'quality';
-            const fps = parseInt(framerateSlider.value, 10);
+            const fps = broadcastSourceType === 'screen' 
+                ? trackSettings.frameRate 
+                : parseInt(framerateSlider.value, 10);
+
             vSettings = {
                 width: trackSettings.width,
                 height: trackSettings.height,
@@ -453,9 +540,9 @@ export async function startBroadcast() {
             });
             await newVideoEncoder.configure(vConfig);
             setVideoEncoder(newVideoEncoder);
-            readVideoFrames(new MediaStreamTrackProcessor({
+            videoReader = new MediaStreamTrackProcessor({
                 track: newLocalStream.getVideoTracks()[0]
-            }).readable.getReader());
+            }).readable.getReader();
             statusText += `(${vSettings.width}x${vSettings.height}@${Math.round(vSettings.framerate)}fps, ${(vSettings.bitrate/1000000).toFixed(1)} Mbps)`;
         }
         if (hasAudio) {
@@ -468,19 +555,29 @@ export async function startBroadcast() {
                 bitrate: aBitrate
             };
             const newAudioEncoder = new AudioEncoder({
-                output: handleAudioEncoderOutput,
+                output: (chunk) => handleAudioEncoderOutput(chunk, latestVideoTimestamp),
                 error: e => console.error(`AErr: ${e.message}`)
             });
             await newAudioEncoder.configure(aConfig);
             setAudioEncoder(newAudioEncoder);
-            readAudioFrames(new MediaStreamTrackProcessor({
+            audioReader = new MediaStreamTrackProcessor({
                 track: newLocalStream.getAudioTracks()[0]
-            }).readable.getReader());
+            }).readable.getReader();
             if (hasVideo) statusText += " & ";
             statusText += `Audio (${aQualityTxt})`;
         }
+
         broadcastStatus.textContent = statusText;
         if (roomNameOnBroadcastPage) roomNameOnBroadcastPage.textContent = `Room: "${myRoomName}"`;
+
+        // --- Start Reading Frames (Only after both encoders are configured) ---
+        setVideoSequenceNumber(0);
+        setAudioSequenceNumber(0);
+        setLatestVideoTimestamp(0); // Reset for a clean start
+
+        if (hasVideo) readVideoFrames(videoReader);
+        if (hasAudio) readAudioFrames(audioReader);
+
     } catch (err) {
         console.error(`Error starting broadcast: ${err.message}`, err);
         settingsStatus.textContent = `An unexpected error occurred: ${err.name}. Please try again.`;
@@ -490,33 +587,67 @@ export async function startBroadcast() {
 
 async function handleVideoEncoderOutput(chunk, metadata, streamSettings) {
     if (!isBroadcasting) return;
+    
     const data = new Uint8Array(chunk.byteLength);
     chunk.copyTo(data);
-    const msg = {
-        type: chunk.type,
-        timestamp: chunk.timestamp,
-        duration: chunk.duration,
-        data_base64: arrayBufferToBase64(data.buffer)
-    };
-    if (chunk.type === 'key' && metadata.decoderConfig) {
-        const config = { ...metadata.decoderConfig };
-        if (config.description) config.description = Array.from(new Uint8Array(config.description));
-        config.streamSettings = streamSettings;
-        msg.config = config;
+
+    if (data.byteLength > MAX_CHUNK_PAYLOAD_SIZE) {
+        const fragmentCount = Math.ceil(data.byteLength / MAX_CHUNK_PAYLOAD_SIZE);
+        for (let i = 0; i < fragmentCount; i++) {
+            const start = i * MAX_CHUNK_PAYLOAD_SIZE;
+            const end = start + MAX_CHUNK_PAYLOAD_SIZE;
+            const fragmentData = data.slice(start, end);
+            
+            const msg = {
+                type: chunk.type,
+                timestamp: chunk.timestamp,
+                duration: chunk.duration,
+                data_base64: arrayBufferToBase64(fragmentData.buffer),
+                seq: videoSequenceNumber,
+                isFragment: true,
+                fragmentIndex: i,
+                fragmentCount: fragmentCount
+            };
+            if (i === 0 && chunk.type === 'key' && metadata.decoderConfig) {
+                const config = { ...metadata.decoderConfig };
+                if (config.description) config.description = Array.from(new Uint8Array(config.description));
+                config.streamSettings = streamSettings;
+                msg.config = config;
+            }
+            await streamrClient.publish(getStreamId('video', myPartition), msg);
+        }
+    } else {
+        const msg = {
+            type: chunk.type,
+            timestamp: chunk.timestamp,
+            duration: chunk.duration,
+            data_base64: arrayBufferToBase64(data.buffer),
+            seq: videoSequenceNumber
+        };
+        if (chunk.type === 'key' && metadata.decoderConfig) {
+            const config = { ...metadata.decoderConfig };
+            if (config.description) config.description = Array.from(new Uint8Array(config.description));
+            config.streamSettings = streamSettings;
+            msg.config = config;
+        }
+        await streamrClient.publish(getStreamId('video', myPartition), msg);
     }
-    await streamrClient.publish(getStreamId('video', myPartition), msg);
+    setVideoSequenceNumber(videoSequenceNumber + 1);
 }
 
-async function handleAudioEncoderOutput(chunk) {
+async function handleAudioEncoderOutput(chunk, syncVideoTimestamp) {
     if (!isBroadcasting) return;
     const data = new Uint8Array(chunk.byteLength);
     chunk.copyTo(data);
     const msg = {
         timestamp: chunk.timestamp,
         duration: chunk.duration,
-        data_base64: arrayBufferToBase64(data.buffer)
+        data_base64: arrayBufferToBase64(data.buffer),
+        seq: audioSequenceNumber,
+        syncVideoTimestamp: syncVideoTimestamp,
     };
     await streamrClient.publish(getStreamId('audio', myPartition), msg);
+    setAudioSequenceNumber(audioSequenceNumber + 1);
 }
 
 async function readVideoFrames(reader) {
@@ -529,6 +660,9 @@ async function readVideoFrames(reader) {
             done: true
         }));
         if (done || !isBroadcasting) break;
+        
+        setLatestVideoTimestamp(frame.timestamp);
+        
         const keyFrame = (Date.now() - lastKeyFrameTimestamp) > interval;
         if (keyFrame) setLastKeyFrameTimestamp(Date.now());
         if (videoEncoder?.state === 'configured') videoEncoder.encode(frame, {
@@ -623,7 +757,8 @@ const renderAndSchedule = () => {
                 }
             }
 
-            const mediaTimeUs = mediaStartTime + ((audioContext.currentTime - playbackStartTime) * 1000000);
+            const audioMediaTimeUs = mediaStartTime + ((audioContext.currentTime - playbackStartTime) * 1000000);
+            const mediaTimeUs = audioMediaTimeUs + syncOffset;
 
             let frameToRender = null;
             while (videoBuffer.length > 0 && videoBuffer[0].timestamp <= mediaTimeUs) {
@@ -789,7 +924,6 @@ async function startViewerPresence() {
                     const canTip = myRealAddress && currentBroadcasterAddress;
                     tipBtn.disabled = !canTip;
                     
-                    // IMPROVEMENT: Update tooltip to give user feedback
                     const tipTooltip = tipBtn.closest('.tooltip-container')?.querySelector('.tooltip-text');
                     if (tipTooltip) {
                         if (!currentBroadcasterAddress) {
@@ -834,3 +968,4 @@ function stopViewerPresence(sendLeave = false) {
     setCurrentUserId(null);
     updateViewerCountUI(-1);
 }
+
